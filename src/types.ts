@@ -1,0 +1,139 @@
+export type UserRole = 'master' | 'manager' | 'player';
+export type MatchStatus = 'scheduled' | 'live' | 'finished';
+export type EventType = 'goal' | 'yellow' | 'red';
+
+export interface UserProfile {
+  id: string;
+  uid: string;
+  name: string;
+  email: string;
+  photoUrl?: string;
+  role: UserRole;
+  organizationId?: string;
+  playerId?: string;
+  active: boolean;
+  lastAccess?: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  ownerId: string;
+  plan: 'starter' | 'pro';
+  active: boolean;
+}
+
+export interface Team {
+  id: string;
+  organizationId: string;
+  name: string;
+  shortName: string;
+  badgeUrl?: string;
+  color: string;
+  foundedYear?: number;
+  playerIds: string[];
+}
+
+export interface Player {
+  id: string;
+  organizationId: string;
+  teamId: string;
+  name: string;
+  nickname?: string;
+  email?: string;
+  photoUrl?: string;
+  positions: string[];
+  shirtNumber?: number;
+  status: 'active' | 'suspended' | 'inactive';
+}
+
+export interface Venue {
+  id: string;
+  organizationId: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  checkinRadius: number;
+  requiresGeolocation: boolean;
+}
+
+export interface League {
+  id: string;
+  organizationId: string;
+  name: string;
+  season: string;
+  teamIds: string[];
+  status: 'active' | 'finished' | 'draft';
+  yellowCardLimit: number;
+  redCardSuspension: number;
+}
+
+export interface MatchEvent {
+  id: string;
+  type: EventType;
+  playerId: string;
+  assistPlayerId?: string;
+  teamId: string;
+  minute: number;
+}
+
+export interface Match {
+  id: string;
+  organizationId: string;
+  leagueId?: string;
+  venueId: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  startsAt: string;
+  status: MatchStatus;
+  homeScore?: number;
+  awayScore?: number;
+  requiresGeolocation: boolean;
+  events: MatchEvent[];
+  notes?: string;
+}
+
+export interface Checkin {
+  id: string;
+  organizationId: string;
+  matchId: string;
+  playerId: string;
+  checkedAt: string;
+  latitude?: number;
+  longitude?: number;
+  distanceMeters?: number;
+  validated: boolean;
+}
+
+export interface ManagerInvite {
+  id: string;
+  email: string;
+  name: string;
+  organizationId: string;
+  organizationName: string;
+  status: 'pending' | 'accepted' | 'disabled';
+  createdAt: string;
+  lastAccess?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  organizationId?: string;
+  actorName: string;
+  action: string;
+  entity: string;
+  createdAt: string;
+}
+
+export interface AppData {
+  organizations: Organization[];
+  teams: Team[];
+  players: Player[];
+  venues: Venue[];
+  leagues: League[];
+  matches: Match[];
+  checkins: Checkin[];
+  managerInvites: ManagerInvite[];
+  auditLogs: AuditLog[];
+}

@@ -1,0 +1,250 @@
+/* eslint-disable react-refresh/only-export-components */
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  setDoc,
+  where,
+  type Query,
+} from 'firebase/firestore';
+import { demoData, demoUsers } from '../data/demo';
+import { db, isFirebaseConfigured, resolveUserProfile, signInWithGoogle, signOutUser, watchAuth } from '../lib/firebase';
+import type { AppData, AuditLog, UserProfile, UserRole } from '../types';
+
+type DataKey = keyof AppData;
+type DataEntity<K extends DataKey> = AppData[K][number];
+
+interface Toast {
+  id: string;
+  message: string;
+  tone: 'success' | 'error' | 'info';
+}
+
+interface AppContextValue {
+  data: AppData;
+  currentUser: UserProfile | null;
+  authLoading: boolean;
+  isDemo: boolean;
+  toasts: Toast[];
+  loginGoogle: () => Promise<void>;
+  enterDemo: (role: UserRole) => void;
+  switchDemoRole: (role: UserRole) => void;
+  logout: () => Promise<void>;
+  saveEntity: <K extends DataKey>(key: K, entity: DataEntity<K>, auditMessage?: string) => Promise<void>;
+  removeEntity: (key: DataKey, id: string, auditMessage?: string) => Promise<void>;
+  notify: (message: string, tone?: Toast['tone']) => void;
+}
+
+const AppContext = createContext<AppContextValue | null>(null);
+const storageKey = 'baba-manager-demo-data-v1';
+
+const emptyData: AppData = {
+  organizations: [],
+  teams: [],
+  players: [],
+  venues: [],
+  leagues: [],
+  matches: [],
+  checkins: [],
+  managerInvites: [],
+  auditLogs: [],
+};
+
+function readDemoData() {
+  try {
+    const saved = localStorage.getItem(storageKey);
+    return saved ? (JSON.parse(saved) as AppData) : structuredClone(demoData);
+  } catch {
+    return structuredClone(demoData);
+  }
+}
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [data, setData] = useState<AppData>(() => isFirebaseConfigured ? emptyData : readDemoData());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
+  const [isDemo, setIsDemo] = useState(!isFirebaseConfigured);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const notify = useCallback((message: string, tone: Toast['tone'] = 'success') => {
+    const id = crypto.randomUUID();
+    setToasts((current) => [...current, { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id));
+    }, 3500);
+  }, []);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      const role = sessionStorage.getItem('baba-demo-role') as UserRole | null;
+      if (role && demoUsers[role]) setCurrentUser(demoUsers[role]);
+      setAuthLoading(false);
+      return;
+    }
+
+    return watchAuth(async (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        setAuthLoading(false);
+        return;
+      }
+      try {
+        const profile = await resolveUserProfile(firebaseUser);
+        setCurrentUser(profile);
+        setIsDemo(false);
+      } catch (error) {
+        console.error(error);
+        notify('Não foi possível carregar seu perfil.', 'error');
+      } finally {
+        setAuthLoading(false);
+      }
+    });
+  }, [notify]);
+
+  useEffect(() => {
+    if (!db || !currentUser || isDemo) return;
+
+    const firestore = db;
+    const organizationId = currentUser.organizationId;
+    const standardKeys: DataKey[] = ['teams', 'players', 'venues', 'leagues', 'matches', 'checkins'];
+    const unsubscribes: Array<() => void> = [];
+
+    const subscribe = (key: DataKey, source: Query) => {
+      unsubscribes.push(onSnapshot(source, (snapshot) => {
+        const entries = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        setData((current) => ({ ...current, [key]: entries }));
+      }, (error) => console.error(`Falha ao sincronizar ${key}:`, error)));
+    };
+
+    standardKeys.forEach((key) => {
+      const source = currentUser.role === 'master'
+        ? query(collection(firestore, key))
+        : query(collection(firestore, key), where('organizationId', '==', organizationId || '__none__'));
+      subscribe(key, source);
+    });
+
+    if (currentUser.role === 'master') {
+      subscribe('organizations', query(collection(firestore, 'organizations')));
+      subscribe('managerInvites', query(collection(firestore, 'managerInvites')));
+      subscribe('auditLogs', query(collection(firestore, 'auditLogs')));
+    } else if (organizationId) {
+      subscribe('organizations', query(collection(firestore, 'organizations'), where('__name__', '==', organizationId)));
+      subscribe('auditLogs', query(collection(firestore, 'auditLogs'), where('organizationId', '==', organizationId)));
+    }
+
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, [currentUser, isDemo]);
+
+  useEffect(() => {
+    if (isDemo) localStorage.setItem(storageKey, JSON.stringify(data));
+  }, [data, isDemo]);
+
+  const loginGoogle = useCallback(async () => {
+    setAuthLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setAuthLoading(false);
+      const message = error instanceof Error ? error.message : 'Falha ao entrar com Google.';
+      notify(message, 'error');
+    }
+  }, [notify]);
+
+  const enterDemo = useCallback((role: UserRole) => {
+    setIsDemo(true);
+    setData(readDemoData());
+    setCurrentUser(demoUsers[role]);
+    sessionStorage.setItem('baba-demo-role', role);
+  }, []);
+
+  const switchDemoRole = useCallback((role: UserRole) => {
+    if (!isDemo) return;
+    setCurrentUser(demoUsers[role]);
+    sessionStorage.setItem('baba-demo-role', role);
+    notify(`Visão alterada para ${role === 'master' ? 'Master' : role === 'manager' ? 'Gerenciador' : 'Jogador'}.`, 'info');
+  }, [isDemo, notify]);
+
+  const logout = useCallback(async () => {
+    sessionStorage.removeItem('baba-demo-role');
+    if (!isDemo) await signOutUser();
+    setCurrentUser(null);
+  }, [isDemo]);
+
+  const saveEntity = useCallback(async <K extends DataKey>(
+    key: K,
+    entity: DataEntity<K>,
+    auditMessage?: string,
+  ) => {
+    setData((current) => {
+      const list = current[key] as Array<{ id: string }>;
+      const next = list.some((item) => item.id === entity.id)
+        ? list.map((item) => item.id === entity.id ? entity : item)
+        : [entity, ...list];
+      return { ...current, [key]: next };
+    });
+
+    if (db && !isDemo) {
+      await setDoc(doc(db, key, entity.id), entity as unknown as Record<string, unknown>);
+    }
+
+    if (auditMessage && currentUser) {
+      const audit: AuditLog = {
+        id: crypto.randomUUID(),
+        organizationId: currentUser.organizationId,
+        actorName: currentUser.name,
+        action: auditMessage,
+        entity: 'BABA MANAGER',
+        createdAt: new Date().toISOString(),
+      };
+      setData((current) => ({ ...current, auditLogs: [audit, ...current.auditLogs] }));
+      if (db && !isDemo) await setDoc(doc(db, 'auditLogs', audit.id), audit);
+    }
+  }, [currentUser, isDemo]);
+
+  const removeEntity = useCallback(async (key: DataKey, id: string, auditMessage?: string) => {
+    setData((current) => ({
+      ...current,
+      [key]: (current[key] as Array<{ id: string }>).filter((item) => item.id !== id),
+    }));
+    if (db && !isDemo) await deleteDoc(doc(db, key, id));
+    if (auditMessage) notify(auditMessage);
+  }, [isDemo, notify]);
+
+  const value = useMemo<AppContextValue>(() => ({
+    data,
+    currentUser,
+    authLoading,
+    isDemo,
+    toasts,
+    loginGoogle,
+    enterDemo,
+    switchDemoRole,
+    logout,
+    saveEntity,
+    removeEntity,
+    notify,
+  }), [data, currentUser, authLoading, isDemo, toasts, loginGoogle, enterDemo, switchDemoRole, logout, saveEntity, removeEntity, notify]);
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (!context) throw new Error('useApp deve ser usado dentro de AppProvider.');
+  return context;
+}
+
+export function createId(prefix: string) {
+  return `${prefix}-${crypto.randomUUID()}`;
+}

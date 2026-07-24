@@ -1,0 +1,171 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(userPath());
+    }
+
+    function profile() {
+      return get(userPath()).data;
+    }
+
+    function isMaster() {
+      return hasProfile() && profile().role == 'master' && profile().active == true;
+    }
+
+    function isManager() {
+      return hasProfile() && profile().role == 'manager' && profile().active == true;
+    }
+
+    function isPlayer() {
+      return hasProfile() && profile().role == 'player' && profile().active == true;
+    }
+
+    function sameOrganization(data) {
+      return hasProfile()
+        && profile().organizationId != null
+        && data.organizationId == profile().organizationId;
+    }
+
+    function managerCanWrite(data) {
+      return isMaster() || (isManager() && sameOrganization(data));
+    }
+
+    match /users/{userId} {
+      allow read: if isMaster() || (signedIn() && request.auth.uid == userId);
+
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.active == true
+        && (
+          (
+            request.resource.data.role == 'manager'
+            && exists(/databases/$(database)/documents/managerInvites/$(request.auth.token.email))
+            && get(/databases/$(database)/documents/managerInvites/$(request.auth.token.email)).data.status != 'disabled'
+            && request.resource.data.organizationId
+              == get(/databases/$(database)/documents/managerInvites/$(request.auth.token.email)).data.organizationId
+          )
+          ||
+          (
+            request.resource.data.role == 'player'
+            && request.resource.data.playerId is string
+            && exists(/databases/$(database)/documents/players/$(request.resource.data.playerId))
+            && get(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.email
+              == request.auth.token.email
+            && request.resource.data.organizationId
+              == get(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.organizationId
+          )
+        );
+
+      allow update: if isMaster()
+        || (
+          signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.organizationId == resource.data.organizationId
+          && request.resource.data.active == resource.data.active
+        );
+      allow delete: if isMaster();
+    }
+
+    match /organizations/{organizationId} {
+      allow read: if isMaster()
+        || (hasProfile() && profile().organizationId == organizationId);
+      allow create, delete: if isMaster();
+      allow update: if isMaster()
+        || (isManager() && profile().organizationId == organizationId);
+    }
+
+    match /managerInvites/{email} {
+      allow read: if isMaster()
+        || (signedIn() && request.auth.token.email == email);
+      allow create, delete: if isMaster();
+      allow update: if isMaster()
+        || (
+          signedIn()
+          && request.auth.token.email == email
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.organizationId == resource.data.organizationId
+        );
+    }
+
+    match /players/{playerId} {
+      allow read: if isMaster()
+        || sameOrganization(resource.data)
+        || (signedIn() && resource.data.email == request.auth.token.email);
+      allow create: if managerCanWrite(request.resource.data);
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /teams/{documentId} {
+      allow read: if isMaster() || sameOrganization(resource.data);
+      allow create: if managerCanWrite(request.resource.data);
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /venues/{documentId} {
+      allow read: if isMaster() || sameOrganization(resource.data);
+      allow create: if managerCanWrite(request.resource.data);
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /leagues/{documentId} {
+      allow read: if isMaster() || sameOrganization(resource.data);
+      allow create: if managerCanWrite(request.resource.data);
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /matches/{documentId} {
+      allow read: if isMaster() || sameOrganization(resource.data);
+      allow create: if managerCanWrite(request.resource.data);
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /checkins/{checkinId} {
+      allow read: if isMaster() || sameOrganization(resource.data);
+      allow create: if isMaster()
+        || (
+          isPlayer()
+          && sameOrganization(request.resource.data)
+          && request.resource.data.playerId == profile().playerId
+          && request.resource.data.validated == true
+        );
+      allow update, delete: if isMaster()
+        || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isMaster() || (isManager() && sameOrganization(resource.data));
+      allow create: if isMaster()
+        || (
+          hasProfile()
+          && sameOrganization(request.resource.data)
+          && request.resource.data.actorName == profile().name
+        );
+      allow update, delete: if false;
+    }
+  }
+}
