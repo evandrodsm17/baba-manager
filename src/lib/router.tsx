@@ -108,5 +108,15 @@ export function NavLink({
     navigate(to);
   };
 
-  return <a {...props} href={to} className={resolvedClass} onClick={onClick}>{children}</a>;
+  return (
+    <a
+      {...props}
+      href={to}
+      className={resolvedClass}
+      aria-current={isActive ? 'page' : undefined}
+      onClick={onClick}
+    >
+      {children}
+    </a>
+  );
 }

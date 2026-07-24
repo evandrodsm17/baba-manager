@@ -3959,7 +3959,7 @@ img {
 
   .ranking-item__name small,
   .ranking-item__metric small {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .activity-row p,
@@ -4007,7 +4007,7 @@ img {
   }
 
   .table-head {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .table-row,
@@ -4107,5 +4107,299 @@ img {
   .checkin-message p,
   .checkin-success p {
     font-size: 12px;
+  }
+}
+
+@media (max-width: 680px) {
+  .main-content {
+    padding-bottom: 104px;
+  }
+
+  .page-header p {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .section-header h2 {
+    font-size: 18px;
+  }
+
+  .section-header p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .text-link {
+    font-size: 12px;
+  }
+
+  .stat-card__label {
+    font-size: 11px;
+  }
+
+  .stat-card__value {
+    font-size: 27px;
+  }
+
+  .stat-card__footer {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .badge {
+    min-height: 29px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .geo-label {
+    font-size: 10px;
+  }
+
+  .match-card__team strong {
+    font-size: 12px;
+  }
+
+  .match-card__score small,
+  .match-card__bottom > span,
+  .match-card__bottom button {
+    font-size: 10px;
+  }
+
+  .ranking-item__position {
+    font-size: 11px;
+  }
+
+  .ranking-item__name strong {
+    font-size: 12px;
+  }
+
+  .ranking-item__name small,
+  .ranking-item__metric small {
+    font-size: 10px;
+  }
+
+  .ranking-item__metric strong {
+    font-size: 16px;
+  }
+
+  .result-row > div {
+    font-size: 11px;
+  }
+
+  .result-row > b {
+    font-size: 16px;
+  }
+
+  .activity-row p {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .activity-row small {
+    font-size: 10px;
+  }
+
+  .toolbar__search input,
+  .toolbar__select select,
+  .toolbar__summary {
+    font-size: 12px;
+  }
+
+  .team-card__title h2 {
+    font-size: 18px;
+  }
+
+  .team-card__title span,
+  .team-card__stats > div,
+  .team-card__footer button {
+    font-size: 11px;
+  }
+
+  .team-card--add strong,
+  .venue-card--add strong {
+    font-size: 13px;
+  }
+
+  .team-card--add small,
+  .venue-card--add small {
+    font-size: 11px;
+  }
+
+  .table-head {
+    font-size: 10px;
+  }
+
+  .table-row,
+  .player-cell strong,
+  .org-name strong {
+    font-size: 11px;
+  }
+
+  .player-cell small {
+    font-size: 10px;
+  }
+
+  .segmented button {
+    font-size: 11px;
+  }
+
+  .league-tabs > button strong,
+  .scorer > span strong,
+  .discipline-row > span strong {
+    font-size: 12px;
+  }
+
+  .league-tabs > button small,
+  .scorer > span small,
+  .discipline-row > span small {
+    font-size: 10px;
+  }
+
+  .scorer > b {
+    font-size: 10px;
+  }
+
+  .league-banner p,
+  .league-banner__rules small,
+  .venue-card__title p,
+  .venue-card__meta > span,
+  .geo-explainer p {
+    font-size: 11px;
+  }
+
+  .venue-card__title h2 {
+    font-size: 16px;
+  }
+
+  .back-link,
+  .match-detail-hero__meta,
+  .match-detail-hero__info {
+    font-size: 11px;
+  }
+
+  .match-detail-score small,
+  .detail-info-card small,
+  .checkin-info small,
+  .timeline__item small {
+    font-size: 10px;
+  }
+
+  .detail-info-card strong,
+  .checkin-info strong,
+  .timeline__item p {
+    font-size: 12px;
+  }
+
+  .checkin-message p,
+  .checkin-success p {
+    font-size: 12px;
+  }
+
+  .privacy-note {
+    font-size: 10px;
+  }
+
+  .master-health strong {
+    font-size: 11px;
+  }
+
+  .master-health small {
+    font-size: 10px;
+  }
+
+  .audit-event__body p,
+  .invite-preview p {
+    font-size: 11px;
+  }
+
+  .audit-event__body > div > span {
+    font-size: 9px;
+  }
+
+  .modal__header p {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .form label > span,
+  .form legend,
+  .toggle-field > span strong,
+  .form-tip strong,
+  .team-picker label > span {
+    font-size: 12px;
+  }
+
+  .form label > span small,
+  .toggle-field > span small,
+  .form-tip span {
+    font-size: 10px;
+  }
+
+  .form input,
+  .form select,
+  .form textarea {
+    font-size: 13px;
+  }
+
+  .bottom-nav {
+    height: 78px;
+    padding: 6px 8px max(7px, env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .bottom-nav a {
+    min-width: 60px;
+    position: relative;
+    gap: 5px;
+    padding: 3px 2px;
+    color: #8fa196;
+    background: transparent;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .bottom-nav a svg {
+    width: 22px;
+    height: 22px;
+    box-sizing: content-box;
+    padding: 5px 10px;
+    border-radius: 11px;
+    color: #8fa196;
+    background: transparent;
+    stroke-width: 1.8;
+    transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+  }
+
+  .bottom-nav a.active {
+    color: #d8ff86;
+    background: transparent;
+    font-weight: 800;
+  }
+
+  .bottom-nav a.active svg {
+    color: #0a160e;
+    background: var(--lime);
+    box-shadow: 0 5px 16px rgba(173, 240, 46, 0.2);
+    stroke-width: 2.3;
+    transform: translateY(-2px);
+  }
+
+  .bottom-nav a.active::before {
+    content: "";
+    width: 24px;
+    height: 3px;
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    transform: translateX(-50%);
+    border-radius: 0 0 4px 4px;
+    background: var(--lime);
   }
 }

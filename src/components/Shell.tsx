@@ -159,7 +159,12 @@ export function Shell({ children }: { children: ReactNode }) {
           {navigation.slice(0, 5).map((item) => {
             const Icon = item.icon;
             return (
-              <NavLink key={item.to} to={item.to} end={item.to === '/'}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+                className={({ isActive }) => isActive ? 'active' : ''}
+              >
                 <Icon size={20} /><span>{item.label}</span>
               </NavLink>
             );
