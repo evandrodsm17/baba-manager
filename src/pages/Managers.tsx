@@ -1,4 +1,4 @@
-import { Building2, Mail, MoreHorizontal, Plus, Search, ShieldCheck, UserCog, UsersRound } from 'lucide-react';
+import { Building2, Mail, Plus, Search, ShieldCheck, UserCheck, UserCog, UsersRound, UserX } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
@@ -71,7 +71,7 @@ export function Managers() {
       {managers.length ? (
         <div className="panel table-panel">
           <div className="managers-table table-scroll">
-            <div className="table-head"><span>Gerenciador</span><span>Organização</span><span>Plano</span><span>Conteúdo</span><span>Último acesso</span><span>Status</span><span /></div>
+            <div className="table-head"><span>Gerenciador</span><span>Organização</span><span>Plano</span><span>Conteúdo</span><span>Último acesso</span><span>Status</span><span>Ação</span></div>
             {managers.map((manager) => {
               const org = data.organizations.find((item) => item.id === manager.organizationId);
               const teams = data.teams.filter((item) => item.organizationId === manager.organizationId).length;
@@ -84,7 +84,15 @@ export function Managers() {
                   <span className="content-count"><UsersRound size={14} />{players} <ShieldCheck size={14} />{teams}</span>
                   <span>{timeAgo(manager.lastAccess)}</span>
                   <span><Badge tone={manager.status === 'accepted' ? 'success' : manager.status === 'pending' ? 'warning' : 'danger'} dot>{manager.status === 'accepted' ? 'Ativo' : manager.status === 'pending' ? 'Pendente' : 'Desativado'}</Badge></span>
-                  <button className="icon-button" type="button" onClick={() => toggleManager(manager)} title={manager.status === 'disabled' ? 'Reativar' : 'Desativar'}><MoreHorizontal size={18} /></button>
+                  <button
+                    className={`manager-status-action ${manager.status === 'disabled' ? 'manager-status-action--enable' : 'manager-status-action--disable'}`}
+                    type="button"
+                    onClick={() => toggleManager(manager)}
+                    aria-label={manager.status === 'disabled' ? `Reativar acesso de ${manager.name}` : `Desativar acesso de ${manager.name}`}
+                  >
+                    {manager.status === 'disabled' ? <UserCheck size={16} /> : <UserX size={16} />}
+                    <span>{manager.status === 'disabled' ? 'Reativar' : 'Desativar'}</span>
+                  </button>
                 </div>
               );
             })}

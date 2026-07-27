@@ -1,5 +1,5 @@
 import { AlertTriangle, Copy, ExternalLink, Globe2, Medal, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import { calculateStandings, getLeagueTeamIds, getPlayerStats, playerDisplayName } from '../lib/utils';
@@ -31,6 +31,13 @@ export function Leagues() {
   const disciplinary = selected ? stats
     .filter((player) => player.red >= selected.redCardSuspension || player.yellow >= selected.yellowCardLimit)
     .sort((a, b) => b.red - a.red || b.yellow - a.yellow) : [];
+
+  useEffect(() => {
+    if (!leagues.length) return;
+    if (!selectedId || !leagues.some((league) => league.id === selectedId)) {
+      setSelectedId(leagues.find((league) => league.status === 'active')?.id || leagues[0].id);
+    }
+  }, [leagues, selectedId]);
 
   const createLeague = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -83,7 +90,18 @@ export function Leagues() {
         eyebrow="COMPETIÇÕES"
         title="Ligas e rankings"
         description="Classificação, artilharia e disciplina calculadas a partir das súmulas."
-        action={canManage ? <Button icon={Plus} onClick={() => setModalOpen(true)}>Nova liga</Button> : undefined}
+        action={canManage ? (
+          <div className="page-header__actions">
+            {selected && (
+              selected.isPublic ? (
+                <Button variant="secondary" icon={ExternalLink} onClick={() => window.open(`/liga/${selected.id}`, '_blank', 'noopener,noreferrer')}>Página pública</Button>
+              ) : (
+                <Button variant="secondary" icon={Globe2} onClick={togglePublication}>Publicar liga selecionada</Button>
+              )
+            )}
+            <Button icon={Plus} onClick={() => setModalOpen(true)}>Nova liga</Button>
+          </div>
+        ) : undefined}
       />
       {leagues.length ? (
         <>

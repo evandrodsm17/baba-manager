@@ -5842,3 +5842,67 @@ img {
     font-size: 13px;
   }
 }
+
+.page-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.managers-table .table-head,
+.managers-table .table-row {
+  min-width: 1020px;
+  grid-template-columns: minmax(190px, 1.3fr) minmax(150px, 1fr) 70px 90px 105px 90px 116px;
+}
+
+.manager-status-action {
+  min-height: 36px;
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.manager-status-action--disable {
+  color: #ffaaa4;
+  border-color: #613c39;
+  background: #2c1a1a;
+}
+
+.manager-status-action--disable:hover {
+  color: #ffd0cc;
+  border-color: #94524c;
+  background: #3a2020;
+}
+
+.manager-status-action--enable {
+  color: #ccf681;
+  border-color: #456438;
+  background: #1a311d;
+}
+
+.manager-status-action--enable:hover {
+  color: #e2ffad;
+  border-color: #71964c;
+  background: #223e24;
+}
+
+@media (max-width: 680px) {
+  .page-header__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .page-header__actions .button {
+    width: 100%;
+  }
+}
