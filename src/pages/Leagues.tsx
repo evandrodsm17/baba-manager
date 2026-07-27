@@ -16,9 +16,16 @@ interface Standing {
   points: number;
 }
 
+function getLeagueTeamIds(league: League, matches: Match[]) {
+  const scheduledTeams = matches
+    .filter((match) => match.leagueId === league.id)
+    .flatMap((match) => [match.homeTeamId, match.awayTeamId]);
+  return [...new Set([...league.teamIds, ...scheduledTeams])];
+}
+
 function calculateStandings(league: League, matches: Match[]): Standing[] {
   const table = new Map<string, Standing>();
-  league.teamIds.forEach((teamId) => table.set(teamId, { teamId, played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }));
+  getLeagueTeamIds(league, matches).forEach((teamId) => table.set(teamId, { teamId, played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }));
   matches.filter((match) => match.leagueId === league.id && match.status === 'finished').forEach((match) => {
     const home = table.get(match.homeTeamId);
     const away = table.get(match.awayTeamId);
@@ -44,12 +51,19 @@ export function Leagues() {
   const [modalOpen, setModalOpen] = useState(false);
   const selected = leagues.find((league) => league.id === selectedId);
   const leagueMatches = data.matches.filter((match) => match.leagueId === selected?.id);
+  const leagueTeamIds = useMemo(
+    () => selected ? getLeagueTeamIds(selected, data.matches) : [],
+    [selected, data.matches],
+  );
   const standings = selected ? calculateStandings(selected, data.matches) : [];
   const stats = useMemo(() => getPlayerStats(
-    data.players.filter((player) => player.organizationId === orgId),
+    data.players.filter((player) => player.organizationId === orgId && leagueTeamIds.includes(player.teamId)),
     leagueMatches,
-  ), [data.players, leagueMatches, orgId]);
-  const scorers = [...stats].sort((a, b) => b.goals - a.goals || b.assists - a.assists).slice(0, 5);
+  ), [data.players, leagueMatches, leagueTeamIds, orgId]);
+  const scorers = [...stats]
+    .filter((player) => player.goals > 0 || player.assists > 0)
+    .sort((a, b) => b.goals - a.goals || b.assists - a.assists)
+    .slice(0, 5);
   const disciplinary = selected ? stats
     .filter((player) => player.red >= selected.redCardSuspension || player.yellow >= selected.yellowCardLimit)
     .sort((a, b) => b.red - a.red || b.yellow - a.yellow) : [];
@@ -96,7 +110,7 @@ export function Leagues() {
           {selected && (
             <>
               <div className="league-banner">
-                <div><span className="eyebrow"><Sparkles size={14} /> TEMPORADA {selected.season}</span><h2>{selected.name}</h2><p>{selected.teamIds.length} equipes · {leagueMatches.filter((match) => match.status === 'finished').length} partidas realizadas</p></div>
+                <div><span className="eyebrow"><Sparkles size={14} /> TEMPORADA {selected.season}</span><h2>{selected.name}</h2><p>{leagueTeamIds.length} equipes · {leagueMatches.filter((match) => match.status === 'finished').length} partidas realizadas</p></div>
                 <div className="league-banner__rules"><span><strong>{selected.yellowCardLimit}</strong><small>amarelos = suspensão</small></span><span><strong>{selected.redCardSuspension}</strong><small>jogo por vermelho</small></span></div>
               </div>
 
@@ -124,7 +138,7 @@ export function Leagues() {
                 <section className="panel">
                   <div className="section-header"><div><h2>Artilharia</h2><p>Gols nesta competição</p></div><Medal size={20} /></div>
                   <div className="scorers">
-                    {scorers.map((player, index) => {
+                    {scorers.length ? scorers.map((player, index) => {
                       const team = data.teams.find((item) => item.id === player.teamId);
                       return (
                         <div className="scorer" key={player.id}>
@@ -133,7 +147,7 @@ export function Leagues() {
                           <em>{player.goals}</em>
                         </div>
                       );
-                    })}
+                    }) : <EmptyState title="Sem gols registrados" description="A artilharia aparecerá após os primeiros eventos aprovados desta liga." />}
                   </div>
                 </section>
 

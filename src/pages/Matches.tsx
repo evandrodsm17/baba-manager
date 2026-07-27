@@ -74,10 +74,11 @@ function MatchesList() {
       return;
     }
     const venue = data.venues.find((item) => item.id === form.get('venueId'));
+    const leagueId = String(form.get('leagueId') || '') || undefined;
     const entity: Match = {
       id: createId('match'),
       organizationId: orgId || '',
-      leagueId: String(form.get('leagueId') || '') || undefined,
+      leagueId,
       venueId: String(form.get('venueId')),
       homeTeamId,
       awayTeamId,
@@ -88,6 +89,15 @@ function MatchesList() {
       notes: String(form.get('notes') || '').trim() || undefined,
     };
     await saveEntity('matches', entity, 'criou uma partida');
+    if (leagueId) {
+      const league = data.leagues.find((item) => item.id === leagueId);
+      if (league) {
+        const teamIds = [...new Set([...league.teamIds, homeTeamId, awayTeamId])];
+        if (teamIds.length !== league.teamIds.length) {
+          await saveEntity('leagues', { ...league, teamIds });
+        }
+      }
+    }
     notify('Partida agendada com sucesso.');
     setModalOpen(false);
   };
