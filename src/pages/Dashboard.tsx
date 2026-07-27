@@ -2,7 +2,6 @@ import {
   Activity,
   CalendarDays,
   CheckCircle2,
-  Clock3,
   MapPin,
   Plus,
   ShieldCheck,
@@ -46,8 +45,8 @@ function ManagerDashboard() {
       />
 
       <div className="stat-grid">
-        <StatCard label="Partidas" value={matches.length} hint={`${upcoming.length} agendadas`} icon={CalendarDays} trend="+12%" />
-        <StatCard label="Jogadores" value={players.length} hint={`${players.filter((player) => player.status === 'active').length} ativos`} icon={UsersRound} tone="blue" trend="+4%" />
+        <StatCard label="Partidas" value={matches.length} hint={`${upcoming.length} agendadas`} icon={CalendarDays} />
+        <StatCard label="Jogadores" value={players.length} hint={`${players.filter((player) => player.status === 'active').length} ativos`} icon={UsersRound} tone="blue" />
         <StatCard label="Equipes" value={teams.length} hint="na organização" icon={ShieldCheck} tone="purple" />
         <StatCard label="Liga ativa" value={activeLeague ? '01' : '—'} hint={activeLeague?.name || 'Nenhuma no momento'} icon={Trophy} tone="orange" />
       </div>
@@ -166,7 +165,18 @@ function MasterDashboard() {
   const { data, currentUser } = useApp();
   const navigate = useNavigate();
   const activeManagers = data.managerInvites.filter((invite) => invite.status === 'accepted');
+  const pendingManagers = data.managerInvites.filter((invite) => invite.status === 'pending').length;
   const orgCount = data.organizations.filter((org) => org.active).length;
+  const inactiveOrgCount = data.organizations.length - orgCount;
+  const activePlayers = data.players.filter((player) => player.status === 'active').length;
+  const now = new Date();
+  const matchesThisMonth = data.matches.filter((match) => {
+    const startsAt = new Date(match.startsAt);
+    return startsAt.getFullYear() === now.getFullYear()
+      && startsAt.getMonth() === now.getMonth();
+  });
+  const finishedThisMonth = matchesThisMonth.filter((match) => match.status === 'finished').length;
+  const scheduledThisMonth = matchesThisMonth.filter((match) => match.status === 'scheduled').length;
 
   return (
     <>
@@ -177,10 +187,16 @@ function MasterDashboard() {
         action={<Button icon={UserCog} onClick={() => navigate('/gerenciadores?novo=1')}>Novo gerenciador</Button>}
       />
       <div className="stat-grid">
-        <StatCard label="Organizações" value={orgCount} hint="ativas na plataforma" icon={ShieldCheck} trend="+8%" />
-        <StatCard label="Gerenciadores" value={activeManagers.length} hint={`${data.managerInvites.filter((item) => item.status === 'pending').length} convites pendentes`} icon={UserCog} tone="blue" />
-        <StatCard label="Jogadores" value="1.284" hint="em todas as organizações" icon={UsersRound} tone="purple" trend="+18%" />
-        <StatCard label="Partidas no mês" value="186" hint="32 nesta semana" icon={CalendarDays} tone="orange" />
+        <StatCard label="Organizações" value={orgCount} hint={`${inactiveOrgCount} inativas`} icon={ShieldCheck} />
+        <StatCard label="Gerenciadores" value={activeManagers.length} hint={`${pendingManagers} convites pendentes`} icon={UserCog} tone="blue" />
+        <StatCard label="Jogadores" value={data.players.length} hint={`${activePlayers} ativos`} icon={UsersRound} tone="purple" />
+        <StatCard
+          label="Partidas no mês"
+          value={matchesThisMonth.length}
+          hint={`${finishedThisMonth} finalizadas · ${scheduledThisMonth} agendadas`}
+          icon={CalendarDays}
+          tone="orange"
+        />
       </div>
       <div className="master-grid">
         <section className="panel master-grid__organizations">
@@ -218,10 +234,6 @@ function MasterDashboard() {
             })}
           </div>
         </section>
-      </div>
-      <div className="master-health">
-        <div><span><CheckCircle2 size={18} /></span><p><strong>Todos os sistemas operacionais</strong><small>Firebase, autenticação e banco de dados</small></p></div>
-        <div><span><Clock3 size={18} /></span><p><strong>99,98% de disponibilidade</strong><small>Últimos 30 dias</small></p></div>
       </div>
     </>
   );
