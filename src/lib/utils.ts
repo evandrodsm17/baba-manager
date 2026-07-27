@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { League, Match, MatchEvent, Player } from '../types';
+import type { League, Match, MatchEvent, Player, Team } from '../types';
 
 export interface Standing {
   teamId: string;
@@ -41,6 +41,61 @@ export function initials(name: string) {
 export function playerDisplayName(player?: Player) {
   if (!player) return 'Jogador';
   return player.nickname || player.name.split(' ')[0];
+}
+
+export function isDrawMatch(match: Match) {
+  return match.matchType === 'draw';
+}
+
+export function getMatchTeams(match: Match, teams: Team[]): [Team | undefined, Team | undefined] {
+  if (!isDrawMatch(match)) {
+    return [
+      teams.find((team) => team.id === match.homeTeamId),
+      teams.find((team) => team.id === match.awayTeamId),
+    ];
+  }
+  return [
+    {
+      id: match.homeTeamId,
+      organizationId: match.organizationId,
+      name: 'Time Verde',
+      shortName: 'VER',
+      color: '#b7f52e',
+      playerIds: match.homePlayerIds || [],
+    },
+    {
+      id: match.awayTeamId,
+      organizationId: match.organizationId,
+      name: 'Time Preto',
+      shortName: 'PRE',
+      color: '#5f7567',
+      playerIds: match.awayPlayerIds || [],
+    },
+  ];
+}
+
+export function matchIncludesPlayer(match: Match, player?: Player) {
+  if (!player) return false;
+  if (isDrawMatch(match)) return Boolean(match.selectedPlayerIds?.includes(player.id));
+  return match.homeTeamId === player.teamId || match.awayTeamId === player.teamId;
+}
+
+export function getPlayerMatchTeamId(match: Match, playerId: string) {
+  if (match.homePlayerIds?.includes(playerId)) return match.homeTeamId;
+  if (match.awayPlayerIds?.includes(playerId)) return match.awayTeamId;
+  return undefined;
+}
+
+export function drawPlayerTeams(playerIds: string[]) {
+  const shuffled = [...playerIds];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return {
+    homePlayerIds: shuffled.filter((_, index) => index % 2 === 0),
+    awayPlayerIds: shuffled.filter((_, index) => index % 2 === 1),
+  };
 }
 
 export function getPlayerStats(players: Player[], matches: Match[]) {

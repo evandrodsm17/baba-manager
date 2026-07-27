@@ -13,7 +13,7 @@ import {
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, PageHeader, SectionHeader, StatCard, TeamMark } from '../components/UI';
 import { useApp } from '../context/AppContext';
-import { formatMatchDate, getPlayerStats, playerDisplayName, timeAgo } from '../lib/utils';
+import { formatMatchDate, getMatchTeams, getPlayerStats, matchIncludesPlayer, playerDisplayName, timeAgo } from '../lib/utils';
 import { useNavigate } from '../lib/router';
 
 export function Dashboard() {
@@ -82,8 +82,7 @@ function ManagerDashboard() {
           <SectionHeader title="Resultados recentes" description="Últimas partidas finalizadas" />
           <div className="results-list">
             {recent.slice(0, 3).map((match) => {
-              const home = teams.find((team) => team.id === match.homeTeamId);
-              const away = teams.find((team) => team.id === match.awayTeamId);
+              const [home, away] = getMatchTeams(match, teams);
               if (!home || !away) return null;
               return (
                 <button key={match.id} className="result-row" type="button" onClick={() => navigate(`/partidas/${match.id}`)}>
@@ -120,7 +119,7 @@ function PlayerDashboard() {
   const player = data.players.find((item) => item.id === currentUser?.playerId);
   const team = data.teams.find((item) => item.id === player?.teamId);
   const relevantMatches = data.matches
-    .filter((match) => match.status === 'scheduled' && (match.homeTeamId === team?.id || match.awayTeamId === team?.id))
+    .filter((match) => match.status === 'scheduled' && matchIncludesPlayer(match, player))
     .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt));
   const next = relevantMatches[0];
   const stats = getPlayerStats(data.players, data.matches).find((item) => item.id === player?.id);

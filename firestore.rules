@@ -95,6 +95,32 @@ service cloud.firestore {
       ) || validManagerAccess(data) || validPlayerAccess(data);
     }
 
+    function validStatSubmissionTeam(data) {
+      let matchData = get(/databases/$(database)/documents/matches/$(data.matchId)).data;
+      let playerData = get(/databases/$(database)/documents/players/$(data.playerId)).data;
+      return (
+          matchData.get('matchType', 'teams') == 'draw'
+          && (
+            (
+              data.teamId == matchData.homeTeamId
+              && data.playerId in matchData.get('homePlayerIds', [])
+            )
+            ||
+            (
+              data.teamId == matchData.awayTeamId
+              && data.playerId in matchData.get('awayPlayerIds', [])
+            )
+          )
+        )
+        || (
+          data.teamId == playerData.teamId
+          && (
+            data.teamId == matchData.homeTeamId
+            || data.teamId == matchData.awayTeamId
+          )
+        );
+    }
+
     match /users/{userId} {
       allow read: if isMaster() || (signedIn() && request.auth.uid == userId);
 
@@ -221,14 +247,7 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.status
           == 'finished'
         && exists(/databases/$(database)/documents/players/$(profile().playerId))
-        && request.resource.data.teamId
-          == get(/databases/$(database)/documents/players/$(profile().playerId)).data.teamId
-        && (
-          request.resource.data.teamId
-            == get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.homeTeamId
-          || request.resource.data.teamId
-            == get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.awayTeamId
-        );
+        && validStatSubmissionTeam(request.resource.data);
 
       allow update: if (
           managerCanWrite(request.resource.data)

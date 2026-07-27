@@ -12,8 +12,10 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - organizações isoladas por `organizationId`;
 - equipes com nome, sigla, cor, escudo por URL e elenco listado no card;
 - jogadores com foto, apelido, e-mail, posições e número da camisa;
+- classificação opcional de jogadores como mensalistas ou convidados;
 - locais com coordenadas e raio autorizado para check-in;
 - partidas agendadas, ao vivo e finalizadas;
+- partidas entre equipes fixas ou com times temporários sorteados entre os jogadores selecionados;
 - súmula editável com gols, assistências, cartões e gol contra;
 - placar calculado automaticamente pelos eventos de gol;
 - finalização com bloqueio da súmula e reabertura controlada pelo gerenciador;
@@ -386,7 +388,7 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 4. Cadastre um local.
 5. Cadastre jogadores.
 6. Crie uma liga e, se desejar, informe a URL de uma imagem de capa. Uma liga existente pode ser atualizada com **Editar liga**.
-7. Agende uma partida.
+7. Agende uma partida entre equipes fixas ou escolha **Times sorteados**, selecione os participantes e deixe o sistema formar os dois lados.
 8. Abra a partida e adicione os gols como eventos da súmula; autor e assistência são opcionais.
 9. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
 10. Edite ou remova eventos enquanto a partida estiver aberta e confira o placar calculado.
@@ -394,6 +396,10 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 12. Em **Ligas**, use **Publicar liga** para gerar a página externa e copie o link exibido.
 
 Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google.
+
+No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os times Verde e Preto existem somente naquela partida. Enquanto ela estiver agendada, o gerenciador pode usar **Sortear novamente**; depois que a súmula começar, a composição fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
+
+Em **Jogadores**, o campo **Tipo de participação** permite identificar opcionalmente mensalistas e convidados. Essa classificação também aparece na seleção do sorteio e pode ser usada como filtro na listagem.
 
 O autor do gol nunca pode ser selecionado também como autor da assistência. Em gols contra, o autor opcional pertence à equipe adversária da equipe beneficiada. O gol contra altera o placar, mas não entra na artilharia do jogador.
 

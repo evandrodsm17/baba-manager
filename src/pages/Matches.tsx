@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Send,
   ShieldAlert,
+  Shuffle,
   Trash2,
   Trophy,
   UsersRound,
@@ -20,9 +21,18 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { formatLongDate, playerDisplayName, scoreFromEvents } from '../lib/utils';
+import {
+  drawPlayerTeams,
+  formatLongDate,
+  getMatchTeams,
+  getPlayerMatchTeamId,
+  isDrawMatch,
+  matchIncludesPlayer,
+  playerDisplayName,
+  scoreFromEvents,
+} from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
-import type { EventType, Match, MatchEvent, StatSubmission } from '../types';
+import type { EventType, Match, MatchEvent, MatchType, StatSubmission } from '../types';
 
 export function Matches() {
   const params = useParams();
@@ -35,18 +45,23 @@ function MatchesList() {
   const [searchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [status, setStatus] = useState<'all' | Match['status']>('all');
+  const [matchType, setMatchType] = useState<MatchType>('teams');
   const [homeTeamId, setHomeTeamId] = useState('');
   const [awayTeamId, setAwayTeamId] = useState('');
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
   const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const teams = data.teams.filter((team) => team.organizationId === orgId);
+  const availablePlayers = data.players
+    .filter((player) => player.organizationId === orgId && player.status === 'active')
+    .sort((a, b) => a.name.localeCompare(b.name));
   const venues = data.venues.filter((venue) => venue.organizationId === orgId);
-  const canSchedule = teams.length >= 2 && venues.length > 0;
+  const canSchedule = venues.length > 0 && (matchType === 'draw' ? selectedPlayerIds.length >= 2 : teams.length >= 2);
   const matches = useMemo(() => data.matches
     .filter((match) => match.organizationId === orgId)
-    .filter((match) => canManage || !activePlayer || match.homeTeamId === activePlayer.teamId || match.awayTeamId === activePlayer.teamId)
+    .filter((match) => canManage || !activePlayer || matchIncludesPlayer(match, activePlayer))
     .filter((match) => status === 'all' || match.status === status)
     .sort((a, b) => status === 'finished' ? +new Date(b.startsAt) - +new Date(a.startsAt) : +new Date(a.startsAt) - +new Date(b.startsAt)), [data.matches, orgId, status, canManage, activePlayer]);
 
@@ -55,8 +70,10 @@ function MatchesList() {
   }, [searchParams, canManage]);
 
   const openSchedule = () => {
+    setMatchType('teams');
     setHomeTeamId('');
     setAwayTeamId('');
+    setSelectedPlayerIds([]);
     setScheduleError('');
     setModalOpen(true);
   };
@@ -64,7 +81,7 @@ function MatchesList() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    if (teams.length < 2) {
+    if (matchType === 'teams' && teams.length < 2) {
       setScheduleError('Cadastre pelo menos duas equipes para criar um confronto.');
       return;
     }
@@ -72,19 +89,32 @@ function MatchesList() {
       setScheduleError('Cadastre um local antes de agendar a partida.');
       return;
     }
-    if (homeTeamId === awayTeamId) {
+    if (matchType === 'teams' && homeTeamId === awayTeamId) {
       setScheduleError('Mandante e visitante precisam ser equipes diferentes.');
       return;
     }
+    if (matchType === 'draw' && selectedPlayerIds.length < 2) {
+      setScheduleError('Selecione pelo menos dois jogadores para realizar o sorteio.');
+      return;
+    }
     const venue = data.venues.find((item) => item.id === form.get('venueId'));
-    const leagueId = String(form.get('leagueId') || '') || undefined;
+    const leagueId = matchType === 'teams' ? String(form.get('leagueId') || '') || undefined : undefined;
+    const matchId = createId('match');
+    const drawnTeams = matchType === 'draw' ? drawPlayerTeams(selectedPlayerIds) : undefined;
     const entity: Match = {
-      id: createId('match'),
+      id: matchId,
       organizationId: orgId || '',
       leagueId,
       venueId: String(form.get('venueId')),
-      homeTeamId,
-      awayTeamId,
+      homeTeamId: matchType === 'draw' ? `${matchId}-green` : homeTeamId,
+      awayTeamId: matchType === 'draw' ? `${matchId}-black` : awayTeamId,
+      matchType,
+      ...(matchType === 'draw' ? {
+        selectedPlayerIds,
+        homePlayerIds: drawnTeams?.homePlayerIds,
+        awayPlayerIds: drawnTeams?.awayPlayerIds,
+        drawnAt: new Date().toISOString(),
+      } : {}),
       startsAt: new Date(String(form.get('startsAt'))).toISOString(),
       status: 'scheduled',
       requiresGeolocation: form.get('requiresGeolocation') === 'on' || Boolean(venue?.requiresGeolocation),
@@ -101,7 +131,7 @@ function MatchesList() {
         }
       }
     }
-    notify('Partida agendada com sucesso.');
+    notify(matchType === 'draw' ? 'Baba agendado e times sorteados.' : 'Partida agendada com sucesso.');
     setModalOpen(false);
   };
 
@@ -110,7 +140,7 @@ function MatchesList() {
       <PageHeader
         eyebrow="CALENDÁRIO"
         title="Partidas"
-        description={canManage ? 'Agende confrontos entre equipes diferentes, registre placares e todos os eventos do jogo.' : 'Acompanhe sua agenda e os resultados da competição.'}
+        description={canManage ? 'Agende confrontos entre equipes fixas ou selecione jogadores para formar times por sorteio.' : 'Acompanhe sua agenda e os resultados da competição.'}
         action={canManage ? <Button icon={Plus} onClick={openSchedule}>Nova partida</Button> : undefined}
       />
       <div className="toolbar toolbar--tabs">
@@ -132,40 +162,78 @@ function MatchesList() {
         <EmptyState title="Nenhuma partida nesta lista" description="Agende um novo confronto ou altere o filtro." action={canManage ? <Button icon={Plus} onClick={openSchedule}>Agendar partida</Button> : undefined} />
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Agendar partida" description="Defina o confronto, o campeonato e as regras de check-in." size="lg">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Agendar partida" description="Escolha entre equipes fixas ou um baba com times sorteados." size="lg">
         <form className="form" onSubmit={submit}>
+          <div className="match-type-selector">
+            <button type="button" className={matchType === 'teams' ? 'active' : ''} onClick={() => { setMatchType('teams'); setScheduleError(''); }}>
+              <Trophy size={21} /><span><strong>Equipes fixas</strong><small>Confronto tradicional, amistoso ou por uma liga.</small></span>
+            </button>
+            <button type="button" className={matchType === 'draw' ? 'active' : ''} onClick={() => { setMatchType('draw'); setScheduleError(''); }}>
+              <Shuffle size={21} /><span><strong>Times sorteados</strong><small>Selecione jogadores de qualquer equipe e sorteie na hora.</small></span>
+            </button>
+          </div>
           <div className={`form-tip ${!canSchedule || scheduleError ? 'form-tip--warning' : ''}`}>
             <ShieldAlert size={18} />
             <p>
               <strong>
-                {teams.length < 2
+                {!venues.length
+                  ? 'Falta cadastrar um local'
+                  : matchType === 'draw' && selectedPlayerIds.length < 2
+                    ? 'Selecione os participantes'
+                    : matchType === 'teams' && teams.length < 2
                   ? 'Falta cadastrar outra equipe'
-                  : !venues.length
-                    ? 'Falta cadastrar um local'
-                    : scheduleError ? 'Confronto inválido' : 'Regra do confronto'}
+                    : scheduleError ? 'Não foi possível agendar' : matchType === 'draw' ? 'Sorteio por partida' : 'Regra do confronto'}
               </strong>
               <span>
-                {teams.length < 2
-                  ? `Você possui ${teams.length} equipe cadastrada. Uma partida exige duas equipes diferentes.`
-                  : !venues.length
-                    ? 'Toda partida precisa estar associada a um campo ou quadra.'
-                    : scheduleError || 'Uma equipe não pode enfrentar ela própria; escolha mandante e visitante diferentes.'}
+                {!venues.length
+                  ? 'Toda partida precisa estar associada a um campo ou quadra.'
+                  : scheduleError
+                    || (matchType === 'draw'
+                      ? `${selectedPlayerIds.length} selecionado${selectedPlayerIds.length === 1 ? '' : 's'}. É necessário escolher pelo menos dois jogadores ativos.`
+                      : teams.length < 2
+                        ? `Você possui ${teams.length} equipe cadastrada. Uma partida exige duas equipes diferentes.`
+                        : 'Uma equipe não pode enfrentar ela própria; escolha mandante e visitante diferentes.')}
               </span>
             </p>
           </div>
-          <div className="versus-form">
-            <label><span>Mandante</span><select name="homeTeamId" required value={homeTeamId} onChange={(event) => { setHomeTeamId(event.target.value); if (event.target.value === awayTeamId) setAwayTeamId(''); setScheduleError(''); }}><option value="">Selecione a equipe</option>{teams.map((team) => <option key={team.id} value={team.id} disabled={team.id === awayTeamId}>{team.name}</option>)}</select></label>
-            <b>VS</b>
-            <label><span>Visitante</span><select name="awayTeamId" required value={awayTeamId} onChange={(event) => { setAwayTeamId(event.target.value); setScheduleError(''); }}><option value="">Selecione outra equipe</option>{teams.map((team) => <option key={team.id} value={team.id} disabled={team.id === homeTeamId}>{team.name}</option>)}</select></label>
-          </div>
+          {matchType === 'teams' ? (
+            <div className="versus-form">
+              <label><span>Mandante</span><select name="homeTeamId" required value={homeTeamId} onChange={(event) => { setHomeTeamId(event.target.value); if (event.target.value === awayTeamId) setAwayTeamId(''); setScheduleError(''); }}><option value="">Selecione a equipe</option>{teams.map((team) => <option key={team.id} value={team.id} disabled={team.id === awayTeamId}>{team.name}</option>)}</select></label>
+              <b>VS</b>
+              <label><span>Visitante</span><select name="awayTeamId" required value={awayTeamId} onChange={(event) => { setAwayTeamId(event.target.value); setScheduleError(''); }}><option value="">Selecione outra equipe</option>{teams.map((team) => <option key={team.id} value={team.id} disabled={team.id === homeTeamId}>{team.name}</option>)}</select></label>
+            </div>
+          ) : (
+            <fieldset className="draw-player-picker">
+              <legend><span>Jogadores participantes</span><button type="button" onClick={() => setSelectedPlayerIds(availablePlayers.length > 0 && selectedPlayerIds.length === availablePlayers.length ? [] : availablePlayers.map((player) => player.id))}>{availablePlayers.length > 0 && selectedPlayerIds.length === availablePlayers.length ? 'Limpar seleção' : 'Selecionar todos'}</button></legend>
+              <div>
+                {availablePlayers.map((player) => {
+                  const team = teams.find((item) => item.id === player.teamId);
+                  const selected = selectedPlayerIds.includes(player.id);
+                  return (
+                    <label key={player.id} className={selected ? 'selected' : ''}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => setSelectedPlayerIds((current) => current.includes(player.id) ? current.filter((id) => id !== player.id) : [...current, player.id])}
+                      />
+                      <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
+                      <span><strong>{playerDisplayName(player)}</strong><small>{player.membershipType === 'subscriber' ? 'Mensalista' : player.membershipType === 'guest' ? 'Convidado' : 'Sem classificação'} · {team?.shortName || 'Sem equipe'}</small></span>
+                      <i><Check size={14} /></i>
+                    </label>
+                  );
+                })}
+              </div>
+              {!availablePlayers.length && <p>Nenhum jogador ativo disponível nesta organização.</p>}
+            </fieldset>
+          )}
           <div className="form-row form-row--2">
             <label><span>Data e horário</span><input name="startsAt" type="datetime-local" required /></label>
             <label><span>Local</span><select name="venueId" required defaultValue=""><option value="">Selecione o campo</option>{venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
           </div>
-          <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>
+          {matchType === 'teams' && <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>}
           <label className="toggle-field"><input type="checkbox" name="requiresGeolocation" /><i /><span><strong>Exigir geolocalização no check-in</strong><small>O jogador deverá estar dentro do raio definido no local.</small></span></label>
           <label><span>Observações <small>(opcional)</small></span><textarea name="notes" rows={3} placeholder="Informações adicionais para os jogadores..." /></label>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={CalendarDays} disabled={!canSchedule}>Agendar partida</Button></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={matchType === 'draw' ? Shuffle : CalendarDays} disabled={!canSchedule}>{matchType === 'draw' ? 'Sortear e agendar' : 'Agendar partida'}</Button></div>
         </form>
       </Modal>
     </>
@@ -187,22 +255,21 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const canManage = currentUser?.role === 'manager';
 
   if (!match) return <EmptyState title="Partida não encontrada" description="Este confronto não existe ou você não possui acesso." action={<Button onClick={() => navigate('/partidas')}>Voltar</Button>} />;
-  const home = data.teams.find((team) => team.id === match.homeTeamId);
-  const away = data.teams.find((team) => team.id === match.awayTeamId);
+  const [home, away] = getMatchTeams(match, data.teams);
   const venue = data.venues.find((item) => item.id === match.venueId);
   const league = data.leagues.find((item) => item.id === match.leagueId);
   const checkedIn = data.checkins.filter((checkin) => checkin.matchId === match.id && checkin.validated);
   const homePlayers = data.players
-    .filter((player) => player.teamId === match.homeTeamId)
+    .filter((player) => isDrawMatch(match) ? match.homePlayerIds?.includes(player.id) : player.teamId === match.homeTeamId)
     .sort((a, b) => (a.shirtNumber || 999) - (b.shirtNumber || 999) || a.name.localeCompare(b.name));
   const awayPlayers = data.players
-    .filter((player) => player.teamId === match.awayTeamId)
+    .filter((player) => isDrawMatch(match) ? match.awayPlayerIds?.includes(player.id) : player.teamId === match.awayTeamId)
     .sort((a, b) => (a.shirtNumber || 999) - (b.shirtNumber || 999) || a.name.localeCompare(b.name));
   const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const playerCanSubmit = currentUser?.role === 'player'
     && match.status === 'finished'
     && Boolean(activePlayer)
-    && (activePlayer?.teamId === match.homeTeamId || activePlayer?.teamId === match.awayTeamId);
+    && matchIncludesPlayer(match, activePlayer);
   const playerSubmission = data.statSubmissions.find((submission) => (
     submission.matchId === match.id && submission.playerId === activePlayer?.id
   ));
@@ -286,11 +353,27 @@ function MatchDetails({ matchId }: { matchId: string }) {
     notify('Partida reaberta. A súmula pode ser editada novamente.');
   };
 
+  const redrawTeams = async () => {
+    if (!isDrawMatch(match) || match.status !== 'scheduled' || !match.selectedPlayerIds?.length) return;
+    const drawnTeams = drawPlayerTeams(match.selectedPlayerIds);
+    await saveEntity('matches', {
+      ...match,
+      ...drawnTeams,
+      drawnAt: new Date().toISOString(),
+    }, 'refez o sorteio dos times');
+    notify('Times sorteados novamente.');
+  };
+
   const eventPlayerTeamId = eventType === 'goal' && ownGoal
     ? eventTeam === home.id ? away.id : home.id
     : eventTeam;
-  const eventPlayers = data.players.filter((player) => player.teamId === eventPlayerTeamId);
-  const assistPlayers = data.players.filter((player) => player.teamId === eventTeam && player.id !== eventPlayer);
+  const playerIdsForTeam = (teamId: string) => (
+    isDrawMatch(match)
+      ? teamId === match.homeTeamId ? match.homePlayerIds || [] : match.awayPlayerIds || []
+      : data.players.filter((player) => player.teamId === teamId).map((player) => player.id)
+  );
+  const eventPlayers = data.players.filter((player) => playerIdsForTeam(eventPlayerTeamId).includes(player.id));
+  const assistPlayers = data.players.filter((player) => playerIdsForTeam(eventTeam).includes(player.id) && player.id !== eventPlayer);
 
   const submitStats = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -307,7 +390,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
       organizationId: match.organizationId,
       matchId: match.id,
       playerId: activePlayer.id,
-      teamId: activePlayer.teamId,
+      teamId: isDrawMatch(match) ? getPlayerMatchTeamId(match, activePlayer.id) || '' : activePlayer.teamId,
       goals,
       assists,
       note: String(form.get('note') || '').trim() || undefined,
@@ -365,7 +448,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
           <Badge tone={match.status === 'finished' ? 'neutral' : match.status === 'live' ? 'danger' : 'lime'}>
             {match.status === 'finished' ? 'Partida finalizada' : match.status === 'live' ? 'Partida em andamento' : 'Partida agendada'}
           </Badge>
-          <span>{league?.name || 'Amistoso'}</span>
+          <span>{isDrawMatch(match) ? 'Baba com times sorteados' : league?.name || 'Amistoso'}</span>
         </div>
         <div className="match-detail-score">
           <div><TeamMark {...home} size="lg" /><h2>{home.name}</h2><small>MANDANTE</small></div>
@@ -383,6 +466,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
               <Button icon={RotateCcw} onClick={reopenMatch}>Reabrir partida</Button>
             ) : (
               <>
+                {isDrawMatch(match) && match.status === 'scheduled' && <Button variant="ghost" icon={Shuffle} onClick={redrawTeams}>Sortear novamente</Button>}
                 <Button variant="secondary" icon={Plus} onClick={() => openEventForm()}>Adicionar evento</Button>
                 <Button icon={CheckCircle2} onClick={finalizeMatch}>Finalizar partida</Button>
               </>
@@ -457,7 +541,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
         </section>
         <section className="panel match-rosters">
           <div className="section-header">
-            <div><h2>Jogadores e check-in</h2><p>Presença dos elencos nesta partida</p></div>
+            <div><h2>Jogadores e check-in</h2><p>{isDrawMatch(match) ? 'Times temporários definidos pelo sorteio desta partida' : 'Presença dos elencos nesta partida'}</p></div>
             <Badge tone="lime">{checkedIn.length} confirmado{checkedIn.length === 1 ? '' : 's'}</Badge>
           </div>
           <div className="match-rosters__grid">
@@ -480,7 +564,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
                           <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team.color} />
                           <div>
                             <strong>{playerDisplayName(player)}</strong>
-                            <small>{player.shirtNumber ? `#${player.shirtNumber} · ` : ''}{player.positions.join(', ')}</small>
+                            <small>{player.membershipType === 'subscriber' ? 'Mensalista · ' : player.membershipType === 'guest' ? 'Convidado · ' : ''}{player.shirtNumber ? `#${player.shirtNumber} · ` : ''}{player.positions.join(', ')}</small>
                           </div>
                           <Badge tone={checkin?.validated ? 'success' : checkin ? 'warning' : 'neutral'} dot>
                             {checkin?.validated ? 'Confirmado' : checkin ? 'Não validado' : 'Sem check-in'}
@@ -529,7 +613,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
         <aside className="match-detail-aside">
           <section className="panel detail-info-card">
             <h3>Informações</h3>
-            <div><span><Trophy size={16} /></span><p><small>Competição</small><strong>{league?.name || 'Partida amistosa'}</strong></p></div>
+            <div><span>{isDrawMatch(match) ? <Shuffle size={16} /> : <Trophy size={16} />}</span><p><small>Formato</small><strong>{isDrawMatch(match) ? 'Baba com times sorteados' : league?.name || 'Partida amistosa'}</strong></p></div>
             <div><span><MapPin size={16} /></span><p><small>Local</small><strong>{venue?.name}</strong></p></div>
             <div><span><UsersRound size={16} /></span><p><small>Check-ins validados</small><strong>{checkedIn.length} jogadores</strong></p></div>
           </section>

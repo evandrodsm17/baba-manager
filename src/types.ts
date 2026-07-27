@@ -1,5 +1,6 @@
 export type UserRole = 'master' | 'manager' | 'player';
 export type MatchStatus = 'scheduled' | 'live' | 'finished';
+export type MatchType = 'teams' | 'draw';
 export type EventType = 'goal' | 'assist' | 'yellow' | 'red';
 
 export interface UserAccess {
@@ -61,6 +62,7 @@ export interface Player {
   photoUrl?: string;
   positions: string[];
   shirtNumber?: number;
+  membershipType?: 'subscriber' | 'guest';
   status: 'active' | 'suspended' | 'inactive';
 }
 
@@ -106,6 +108,11 @@ export interface Match {
   venueId: string;
   homeTeamId: string;
   awayTeamId: string;
+  matchType?: MatchType;
+  selectedPlayerIds?: string[];
+  homePlayerIds?: string[];
+  awayPlayerIds?: string[];
+  drawnAt?: string;
   startsAt: string;
   status: MatchStatus;
   homeScore?: number;

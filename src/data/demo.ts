@@ -63,12 +63,12 @@ export const demoData: AppData = {
     { id: 't4', organizationId: org, name: 'Resenha 12', shortName: 'R12', color: '#f7c948', playerIds: [] },
   ],
   players: [
-    { id: 'p1', organizationId: org, teamId: 't1', name: 'Carlos Eduardo', nickname: 'Cadu', email: 'cadu@arenadobaba.com', positions: ['Atacante'], shirtNumber: 9, status: 'active' },
-    { id: 'p2', organizationId: org, teamId: 't1', name: 'Lucas Nascimento', nickname: 'Luquinhas', positions: ['Meia', 'Atacante'], shirtNumber: 10, status: 'active' },
-    { id: 'p3', organizationId: org, teamId: 't1', name: 'Bruno Lima', nickname: 'Brunão', positions: ['Zagueiro'], shirtNumber: 4, status: 'active' },
-    { id: 'p4', organizationId: org, teamId: 't1', name: 'Marcos Paulo', nickname: 'Marquinhos', positions: ['Goleiro'], shirtNumber: 1, status: 'active' },
-    { id: 'p5', organizationId: org, teamId: 't2', name: 'Diego Santos', nickname: 'Diego', positions: ['Atacante'], shirtNumber: 11, status: 'active' },
-    { id: 'p6', organizationId: org, teamId: 't2', name: 'André Luiz', nickname: 'Deco', positions: ['Meia'], shirtNumber: 8, status: 'active' },
+    { id: 'p1', organizationId: org, teamId: 't1', name: 'Carlos Eduardo', nickname: 'Cadu', email: 'cadu@arenadobaba.com', positions: ['Atacante'], shirtNumber: 9, membershipType: 'subscriber', status: 'active' },
+    { id: 'p2', organizationId: org, teamId: 't1', name: 'Lucas Nascimento', nickname: 'Luquinhas', positions: ['Meia', 'Atacante'], shirtNumber: 10, membershipType: 'subscriber', status: 'active' },
+    { id: 'p3', organizationId: org, teamId: 't1', name: 'Bruno Lima', nickname: 'Brunão', positions: ['Zagueiro'], shirtNumber: 4, membershipType: 'guest', status: 'active' },
+    { id: 'p4', organizationId: org, teamId: 't1', name: 'Marcos Paulo', nickname: 'Marquinhos', positions: ['Goleiro'], shirtNumber: 1, membershipType: 'subscriber', status: 'active' },
+    { id: 'p5', organizationId: org, teamId: 't2', name: 'Diego Santos', nickname: 'Diego', positions: ['Atacante'], shirtNumber: 11, membershipType: 'subscriber', status: 'active' },
+    { id: 'p6', organizationId: org, teamId: 't2', name: 'André Luiz', nickname: 'Deco', positions: ['Meia'], shirtNumber: 8, membershipType: 'guest', status: 'active' },
     { id: 'p7', organizationId: org, teamId: 't2', name: 'Thiago Moreira', nickname: 'Thi', positions: ['Lateral'], shirtNumber: 2, status: 'suspended' },
     { id: 'p8', organizationId: org, teamId: 't2', name: 'Felipe Rocha', positions: ['Goleiro'], shirtNumber: 12, status: 'active' },
     { id: 'p9', organizationId: org, teamId: 't3', name: 'João Pedro', nickname: 'JP', positions: ['Atacante'], shirtNumber: 7, status: 'active' },
@@ -86,6 +86,13 @@ export const demoData: AppData = {
   matches: [
     { id: 'm1', organizationId: org, leagueId: 'l1', venueId: 'v1', homeTeamId: 't1', awayTeamId: 't2', startsAt: new Date(Date.now() + 86400000).toISOString(), status: 'scheduled', requiresGeolocation: true, events: [] },
     { id: 'm2', organizationId: org, leagueId: 'l1', venueId: 'v2', homeTeamId: 't3', awayTeamId: 't4', startsAt: new Date(Date.now() + 3 * 86400000).toISOString(), status: 'scheduled', requiresGeolocation: false, events: [] },
+    {
+      id: 'm5', organizationId: org, venueId: 'v2', homeTeamId: 'm5-green', awayTeamId: 'm5-black', matchType: 'draw',
+      selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9'],
+      homePlayerIds: ['p1', 'p3', 'p5', 'p8'], awayPlayerIds: ['p2', 'p4', 'p6', 'p9'],
+      drawnAt: new Date().toISOString(), startsAt: new Date(Date.now() + 12 * 3600000).toISOString(),
+      status: 'scheduled', requiresGeolocation: false, events: [], notes: 'Times definidos por sorteio entre os participantes.',
+    },
     {
       id: 'm3', organizationId: org, leagueId: 'l1', venueId: 'v3', homeTeamId: 't1', awayTeamId: 't3',
       startsAt: new Date(Date.now() - 6 * 86400000).toISOString(), status: 'finished', homeScore: 3, awayScore: 1, requiresGeolocation: true,

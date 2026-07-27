@@ -1,4 +1,4 @@
-import { Filter, MoreHorizontal, Plus, Search, Shirt, UserRound } from 'lucide-react';
+import { Filter, MoreHorizontal, Plus, Search, Shirt, UserRound, UsersRound } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
@@ -13,12 +13,14 @@ export function Players() {
   const orgId = currentUser?.organizationId;
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('all');
+  const [membershipFilter, setMembershipFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Player | null>(null);
   const stats = useMemo(() => getPlayerStats(data.players, data.matches), [data.players, data.matches]);
   const players = stats
     .filter((player) => player.organizationId === orgId)
     .filter((player) => teamFilter === 'all' || player.teamId === teamFilter)
+    .filter((player) => membershipFilter === 'all' || (membershipFilter === 'unclassified' ? !player.membershipType : player.membershipType === membershipFilter))
     .filter((player) => `${player.name} ${player.nickname || ''}`.toLowerCase().includes(search.toLowerCase()));
   const teams = data.teams.filter((team) => team.organizationId === orgId);
 
@@ -46,6 +48,7 @@ export function Players() {
       photoUrl: String(form.get('photoUrl') || '').trim() || undefined,
       positions: selectedPositions.length ? selectedPositions : ['Atacante'],
       shirtNumber: Number(form.get('shirtNumber')) || undefined,
+      membershipType: (String(form.get('membershipType') || '') || undefined) as Player['membershipType'],
       status: String(form.get('status') || 'active') as Player['status'],
     };
     await saveEntity('players', entity, editing ? 'atualizou um jogador' : 'adicionou um jogador');
@@ -58,12 +61,13 @@ export function Players() {
       <PageHeader
         eyebrow={canManage ? 'ELENCOS' : 'ATLETAS DA LIGA'}
         title="Jogadores"
-        description={canManage ? 'Cadastre atletas, posições e acompanhe a situação disciplinar.' : 'Confira os atletas e os destaques da temporada.'}
+        description={canManage ? 'Cadastre atletas, posições e, se desejar, diferencie mensalistas e convidados.' : 'Confira os atletas e os destaques da temporada.'}
         action={canManage ? <Button icon={Plus} onClick={() => openForm()}>Novo jogador</Button> : undefined}
       />
       <div className="toolbar">
         <label className="toolbar__search"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome ou apelido..." /></label>
         <label className="toolbar__select"><Filter size={16} /><select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}><option value="all">Todas as equipes</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+        <label className="toolbar__select"><UsersRound size={16} /><select value={membershipFilter} onChange={(event) => setMembershipFilter(event.target.value)}><option value="all">Todos os vínculos</option><option value="subscriber">Mensalistas</option><option value="guest">Convidados</option><option value="unclassified">Não informado</option></select></label>
       </div>
 
       {players.length ? (
@@ -76,7 +80,7 @@ export function Players() {
               const team = teams.find((item) => item.id === player.teamId);
               return (
                 <div className="table-row" key={player.id}>
-                  <div className="player-cell"><Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} /><span><strong>{player.name}</strong><small>{player.nickname ? `"${player.nickname}"` : player.email || 'Sem apelido'}</small></span></div>
+                  <div className="player-cell"><Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} /><span><strong>{player.name}</strong><small>{player.nickname ? `"${player.nickname}"` : player.email || 'Sem apelido'} · {player.membershipType === 'subscriber' ? 'Mensalista' : player.membershipType === 'guest' ? 'Convidado' : 'Vínculo não informado'}</small></span></div>
                   <div className="team-cell">{team && <TeamMark {...team} size="sm" />}<span>{team?.shortName || '—'}</span></div>
                   <span>{player.positions.join(', ')}</span>
                   <strong className="shirt-number">{player.shirtNumber || '—'}</strong>
@@ -108,11 +112,13 @@ export function Players() {
             <label><span>Número da camisa</span><input name="shirtNumber" type="number" min="1" max="99" defaultValue={editing?.shirtNumber} placeholder="10" /></label>
             <label><span>Situação</span><select name="status" defaultValue={editing?.status || 'active'}><option value="active">Ativo</option><option value="suspended">Suspenso</option><option value="inactive">Inativo</option></select></label>
           </div>
+          <label><span>Tipo de participação <small>(opcional)</small></span><select name="membershipType" defaultValue={editing?.membershipType || ''}><option value="">Não controlar</option><option value="subscriber">Mensalista</option><option value="guest">Convidado</option></select></label>
           <fieldset className="checkbox-field">
             <legend>Posições em que joga</legend>
             <div>{positions.map((position) => <label key={position}><input type="checkbox" name="positions" value={position} defaultChecked={editing?.positions.includes(position)} /><span>{position}</span></label>)}</div>
           </fieldset>
           <div className="form-tip"><UserRound size={18} /><p><strong>Vínculo automático</strong><span>Quando o jogador entrar com este e-mail, o perfil será associado ao cadastro acima.</span></p></div>
+          <div className="form-tip"><UsersRound size={18} /><p><strong>Mensalista ou convidado</strong><span>Essa classificação é opcional e pode ser usada para filtrar e selecionar participantes nos babas com sorteio.</span></p></div>
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={Shirt}>{editing ? 'Salvar alterações' : 'Adicionar jogador'}</Button></div>
         </form>
       </Modal>

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Badge, Button, EmptyState, PageHeader, SuccessSeal } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { formatLongDate, haversineDistance } from '../lib/utils';
+import { formatLongDate, haversineDistance, matchIncludesPlayer } from '../lib/utils';
 import type { Checkin } from '../types';
 
 type CheckinState = 'idle' | 'locating' | 'success' | 'outside' | 'error';
@@ -13,9 +13,8 @@ export function CheckinPage() {
   const [state, setState] = useState<CheckinState>('idle');
   const [distance, setDistance] = useState<number>();
   const player = data.players.find((item) => item.id === currentUser?.playerId);
-  const team = data.teams.find((item) => item.id === player?.teamId);
   const nextMatch = data.matches
-    .filter((match) => match.status === 'scheduled' && (match.homeTeamId === team?.id || match.awayTeamId === team?.id))
+    .filter((match) => match.status === 'scheduled' && matchIncludesPlayer(match, player))
     .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt))[0];
   const venue = data.venues.find((item) => item.id === nextMatch?.venueId);
   const existing = data.checkins.find((item) => item.matchId === nextMatch?.id && item.playerId === player?.id && item.validated);
@@ -75,7 +74,7 @@ export function CheckinPage() {
     }, () => setState('error'), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };
 
-  if (!nextMatch || !venue || !team) {
+  if (!nextMatch || !venue || !player) {
     return (
       <>
         <PageHeader eyebrow="PRESENÇA" title="Check-in" description="Confirme sua chegada às próximas partidas." />

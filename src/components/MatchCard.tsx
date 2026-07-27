@@ -1,7 +1,7 @@
 import { ChevronRight, MapPin, Radio } from 'lucide-react';
 import type { Match, Team, Venue } from '../types';
 import { useNavigate } from '../lib/router';
-import { formatMatchDate } from '../lib/utils';
+import { formatMatchDate, getMatchTeams, isDrawMatch } from '../lib/utils';
 import { Badge, TeamMark } from './UI';
 
 export function MatchCard({
@@ -16,8 +16,7 @@ export function MatchCard({
   compact?: boolean;
 }) {
   const navigate = useNavigate();
-  const home = teams.find((team) => team.id === match.homeTeamId);
-  const away = teams.find((team) => team.id === match.awayTeamId);
+  const [home, away] = getMatchTeams(match, teams);
   const venue = venues.find((item) => item.id === match.venueId);
   if (!home || !away) return null;
 
@@ -30,6 +29,7 @@ export function MatchCard({
         >
           {match.status === 'finished' ? 'Finalizada' : match.status === 'live' ? 'Ao vivo' : formatMatchDate(match.startsAt)}
         </Badge>
+        {isDrawMatch(match) && <Badge tone="success">Times sorteados</Badge>}
         {match.requiresGeolocation && <span className="geo-label"><Radio size={13} /> Check-in por localização</span>}
       </div>
       <div className="match-card__versus">
