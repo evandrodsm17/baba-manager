@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { MatchCard } from '../components/MatchCard';
-import { Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
+import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import { formatLongDate, playerDisplayName } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
@@ -175,6 +175,12 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const venue = data.venues.find((item) => item.id === match.venueId);
   const league = data.leagues.find((item) => item.id === match.leagueId);
   const checkedIn = data.checkins.filter((checkin) => checkin.matchId === match.id && checkin.validated);
+  const homePlayers = data.players
+    .filter((player) => player.teamId === match.homeTeamId)
+    .sort((a, b) => (a.shirtNumber || 999) - (b.shirtNumber || 999) || a.name.localeCompare(b.name));
+  const awayPlayers = data.players
+    .filter((player) => player.teamId === match.awayTeamId)
+    .sort((a, b) => (a.shirtNumber || 999) - (b.shirtNumber || 999) || a.name.localeCompare(b.name));
   const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const playerCanSubmit = currentUser?.role === 'player'
     && match.status === 'finished'
@@ -347,6 +353,47 @@ function MatchDetails({ matchId }: { matchId: string }) {
                 </div>
               );
             }) : <EmptyState title="Súmula vazia" description="Os eventos registrados durante a partida aparecerão aqui." />}
+          </div>
+        </section>
+        <section className="panel match-rosters">
+          <div className="section-header">
+            <div><h2>Jogadores e check-in</h2><p>Presença dos elencos nesta partida</p></div>
+            <Badge tone="lime">{checkedIn.length} confirmado{checkedIn.length === 1 ? '' : 's'}</Badge>
+          </div>
+          <div className="match-rosters__grid">
+            {[
+              { team: home, players: homePlayers },
+              { team: away, players: awayPlayers },
+            ].map(({ team, players }) => {
+              const confirmed = players.filter((player) => checkedIn.some((checkin) => checkin.playerId === player.id)).length;
+              return (
+                <article className="match-roster" key={team.id}>
+                  <header>
+                    <TeamMark {...team} size="sm" />
+                    <div><strong>{team.name}</strong><small>{confirmed} de {players.length} com check-in</small></div>
+                  </header>
+                  <div className="match-roster__players">
+                    {players.length ? players.map((player) => {
+                      const checkin = data.checkins.find((item) => item.matchId === match.id && item.playerId === player.id);
+                      return (
+                        <div className="match-roster__player" key={player.id}>
+                          <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team.color} />
+                          <div>
+                            <strong>{playerDisplayName(player)}</strong>
+                            <small>{player.shirtNumber ? `#${player.shirtNumber} · ` : ''}{player.positions.join(', ')}</small>
+                          </div>
+                          <Badge tone={checkin?.validated ? 'success' : checkin ? 'warning' : 'neutral'} dot>
+                            {checkin?.validated ? 'Confirmado' : checkin ? 'Não validado' : 'Sem check-in'}
+                          </Badge>
+                        </div>
+                      );
+                    }) : (
+                      <div className="match-roster__empty">Nenhum jogador cadastrado nesta equipe.</div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
         {canManage && pendingSubmissions.length > 0 && (

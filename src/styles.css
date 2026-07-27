@@ -4271,6 +4271,134 @@ img {
   }
 }
 
+/* Match rosters and attendance */
+.match-rosters {
+  grid-column: 1;
+}
+
+.match-detail-aside {
+  grid-row: 1 / span 3;
+}
+
+.match-rosters__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.match-roster {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #294235;
+  border-radius: 13px;
+  background: #0d1e14;
+}
+
+.match-roster > header {
+  min-height: 66px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #294235;
+  background: #13271a;
+}
+
+.match-roster > header > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.match-roster > header strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-roster > header small {
+  margin-top: 3px;
+  color: #91a097;
+}
+
+.match-roster__players {
+  display: grid;
+}
+
+.match-roster__player {
+  min-width: 0;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid #20372a;
+}
+
+.match-roster__player:last-child {
+  border-bottom: 0;
+}
+
+.match-roster__player > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.match-roster__player > div strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-roster__player > div small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: #87978e;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-roster__player .badge {
+  max-width: 112px;
+  white-space: nowrap;
+}
+
+.match-roster__empty {
+  padding: 22px 15px;
+  color: #8c9d92;
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 1000px) {
+  .match-rosters,
+  .match-detail-aside {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .match-rosters__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 430px) {
+  .match-roster__player {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .match-roster__player .badge {
+    width: fit-content;
+    margin-left: 43px;
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 680px) {
   .main-content {
     padding-bottom: 104px;
