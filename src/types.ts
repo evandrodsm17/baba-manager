@@ -176,6 +176,46 @@ export interface StatSubmission {
   reviewedBy?: string;
 }
 
+export interface FinancialSettings {
+  id: string;
+  organizationId: string;
+  monthlyFee: number;
+  dueDay: number;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+export interface FinancialCharge {
+  id: string;
+  organizationId: string;
+  playerId: string;
+  type: 'monthly' | 'guest' | 'other';
+  description: string;
+  referenceMonth: string;
+  amount: number;
+  dueDate: string;
+  status: 'pending' | 'paid' | 'cancelled';
+  createdAt: string;
+  paidAt?: string;
+  paymentMethod?: 'pix' | 'cash' | 'transfer' | 'card' | 'other';
+  notes?: string;
+}
+
+export interface FinancialExpense {
+  id: string;
+  organizationId: string;
+  category: 'venue' | 'referee' | 'equipment' | 'other';
+  description: string;
+  referenceMonth: string;
+  amount: number;
+  dueDate: string;
+  status: 'pending' | 'paid' | 'cancelled';
+  createdAt: string;
+  paidAt?: string;
+  paymentMethod?: 'pix' | 'cash' | 'transfer' | 'card' | 'other';
+  notes?: string;
+}
+
 export interface ManagerInvite {
   id: string;
   email: string;
@@ -205,6 +245,9 @@ export interface AppData {
   matches: Match[];
   checkins: Checkin[];
   statSubmissions: StatSubmission[];
+  financialSettings: FinancialSettings[];
+  financialCharges: FinancialCharge[];
+  financialExpenses: FinancialExpense[];
   managerInvites: ManagerInvite[];
   auditLogs: AuditLog[];
 }

@@ -1,6 +1,7 @@
 import type { AppData, UserProfile } from '../types';
 
 const org = 'org-arena-12';
+const currentMonth = new Date().toISOString().slice(0, 7);
 
 export const demoUsers: Record<'master' | 'manager' | 'player', UserProfile> = {
   master: {
@@ -132,6 +133,46 @@ export const demoData: AppData = {
       note: 'Dois gols no primeiro tempo e uma assistência.',
       status: 'pending',
       createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
+    },
+  ],
+  financialSettings: [
+    { id: org, organizationId: org, monthlyFee: 80, dueDay: 10, enabled: true, updatedAt: new Date().toISOString() },
+  ],
+  financialCharges: [
+    {
+      id: `monthly-${currentMonth}-p1`, organizationId: org, playerId: 'p1', type: 'monthly',
+      description: `Mensalidade ${currentMonth}`, referenceMonth: currentMonth, amount: 80,
+      dueDate: `${currentMonth}-10`, status: 'paid', createdAt: `${currentMonth}-01T12:00:00.000Z`,
+      paidAt: `${currentMonth}-08T18:30:00.000Z`, paymentMethod: 'pix',
+    },
+    {
+      id: `monthly-${currentMonth}-p2`, organizationId: org, playerId: 'p2', type: 'monthly',
+      description: `Mensalidade ${currentMonth}`, referenceMonth: currentMonth, amount: 80,
+      dueDate: `${currentMonth}-10`, status: 'pending', createdAt: `${currentMonth}-01T12:00:00.000Z`,
+    },
+    {
+      id: `monthly-${currentMonth}-p4`, organizationId: org, playerId: 'p4', type: 'monthly',
+      description: `Mensalidade ${currentMonth}`, referenceMonth: currentMonth, amount: 80,
+      dueDate: `${currentMonth}-10`, status: 'paid', createdAt: `${currentMonth}-01T12:00:00.000Z`,
+      paidAt: `${currentMonth}-09T20:00:00.000Z`, paymentMethod: 'cash',
+    },
+    {
+      id: `guest-${currentMonth}-p3`, organizationId: org, playerId: 'p3', type: 'guest',
+      description: 'Participação avulsa', referenceMonth: currentMonth, amount: 25,
+      dueDate: `${currentMonth}-20`, status: 'pending', createdAt: `${currentMonth}-15T12:00:00.000Z`,
+    },
+  ],
+  financialExpenses: [
+    {
+      id: `expense-venue-${currentMonth}`, organizationId: org, category: 'venue',
+      description: 'Aluguel da quadra', referenceMonth: currentMonth, amount: 240,
+      dueDate: `${currentMonth}-05`, status: 'paid', createdAt: `${currentMonth}-01T12:00:00.000Z`,
+      paidAt: `${currentMonth}-05T15:00:00.000Z`, paymentMethod: 'pix',
+    },
+    {
+      id: `expense-equipment-${currentMonth}`, organizationId: org, category: 'equipment',
+      description: 'Bolas e coletes', referenceMonth: currentMonth, amount: 95,
+      dueDate: `${currentMonth}-28`, status: 'pending', createdAt: `${currentMonth}-18T12:00:00.000Z`,
     },
   ],
   managerInvites: [

@@ -13,6 +13,7 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - equipes com nome, sigla, cor, escudo por URL e elenco listado no card;
 - jogadores com foto, apelido, e-mail, posições e número da camisa;
 - classificação opcional de jogadores como mensalistas ou convidados;
+- módulo financeiro com mensalidades, cobranças avulsas, recebimentos, despesas e saldo realizado;
 - locais com coordenadas e raio autorizado para check-in;
 - partidas agendadas, ao vivo e finalizadas;
 - partidas entre equipes fixas ou com times temporários sorteados entre os jogadores selecionados;
@@ -401,6 +402,20 @@ No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer eq
 
 Em **Jogadores**, o campo **Tipo de participação** permite identificar opcionalmente mensalistas e convidados. Essa classificação também aparece na seleção do sorteio e pode ser usada como filtro na listagem.
 
+### Módulo financeiro
+
+O menu **Financeiro** fica disponível para o gerenciador da organização e não é exibido nas páginas públicas. Para iniciar:
+
+1. Abra **Financeiro** e clique em **Configurar**.
+2. Informe o valor padrão da mensalidade e o dia de vencimento.
+3. Confirme quais jogadores estão classificados como **Mensalista** no cadastro de jogadores.
+4. Selecione a competência e use **Gerar mensalidades**.
+5. Registre os recebimentos informando data e forma de pagamento.
+6. Use **Nova cobrança** para convidados ou valores avulsos.
+7. Cadastre custos em **Nova despesa**, como local, arbitragem ou materiais.
+
+A geração mensal não duplica uma cobrança ativa para o mesmo jogador e competência. O painel apresenta valores previstos, recebidos, atrasados, despesas pagas e saldo realizado. Recebimentos e pagamentos podem ser estornados, e lançamentos incorretos podem ser cancelados sem apagar o histórico.
+
 O autor do gol nunca pode ser selecionado também como autor da assistência. Em gols contra, o autor opcional pertence à equipe adversária da equipe beneficiada. O gol contra altera o placar, mas não entra na artilharia do jogador.
 
 ### Página pública da liga
@@ -465,6 +480,9 @@ O sistema cria e utiliza as seguintes coleções:
 | `matches` | Partidas, placares e súmulas |
 | `checkins` | Presenças validadas |
 | `statSubmissions` | Gols e assistências declarados pelos jogadores e seu status de aprovação |
+| `financialSettings` | Valor padrão, vencimento e ativação do controle mensal |
+| `financialCharges` | Mensalidades, cobranças avulsas e recebimentos |
+| `financialExpenses` | Despesas, pagamentos e custos da organização |
 | `publicLeagues` | Cópias sanitizadas das ligas publicadas e suas partidas |
 | `auditLogs` | Atividades administrativas |
 

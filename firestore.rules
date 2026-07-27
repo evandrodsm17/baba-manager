@@ -281,6 +281,39 @@ service cloud.firestore {
       allow delete: if isMaster();
     }
 
+    match /financialSettings/{documentId} {
+      allow read: if isMaster() || (isManager() && sameOrganization(resource.data));
+      allow create: if managerCanWrite(request.resource.data);
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /financialCharges/{documentId} {
+      allow read: if isMaster() || (isManager() && sameOrganization(resource.data));
+      allow create: if managerCanWrite(request.resource.data)
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.playerId == resource.data.playerId
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /financialExpenses/{documentId} {
+      allow read: if isMaster() || (isManager() && sameOrganization(resource.data));
+      allow create: if managerCanWrite(request.resource.data)
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
     match /publicLeagues/{leagueId} {
       allow read: if resource.data.isPublic == true
         || isMaster()

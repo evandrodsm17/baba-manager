@@ -50,7 +50,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-const storageKey = 'baba-manager-demo-data-v3';
+const storageKey = 'baba-manager-demo-data-v4';
 
 const emptyData: AppData = {
   organizations: [],
@@ -61,6 +61,9 @@ const emptyData: AppData = {
   matches: [],
   checkins: [],
   statSubmissions: [],
+  financialSettings: [],
+  financialCharges: [],
+  financialExpenses: [],
   managerInvites: [],
   auditLogs: [],
 };
@@ -137,6 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const firestore = db;
     const organizationId = currentUser.organizationId;
     const standardKeys: DataKey[] = ['teams', 'players', 'venues', 'leagues', 'matches', 'checkins'];
+    const financialKeys: DataKey[] = ['financialSettings', 'financialCharges', 'financialExpenses'];
     const unsubscribes: Array<() => void> = [];
 
     const subscribe = (key: DataKey, source: Query) => {
@@ -152,6 +156,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : query(collection(firestore, key), where('organizationId', '==', organizationId || '__none__'));
       subscribe(key, source);
     });
+
+    if (currentUser.role === 'master') {
+      financialKeys.forEach((key) => subscribe(key, query(collection(firestore, key))));
+    } else if (currentUser.role === 'manager' && organizationId) {
+      financialKeys.forEach((key) => subscribe(
+        key,
+        query(collection(firestore, key), where('organizationId', '==', organizationId)),
+      ));
+    }
 
     if (currentUser.role === 'master') {
       subscribe('organizations', query(collection(firestore, 'organizations')));
