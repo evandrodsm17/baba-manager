@@ -70,6 +70,18 @@ function readDemoData() {
   }
 }
 
+function withoutUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutUndefined);
+  if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entry]) => entry !== undefined)
+        .map(([key, entry]) => [key, withoutUndefined(entry)]),
+    );
+  }
+  return value;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(() => isFirebaseConfigured ? emptyData : readDemoData());
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -105,7 +117,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsDemo(false);
       } catch (error) {
         console.error(error);
-        notify('Não foi possível carregar seu perfil.', 'error');
+        setCurrentUser(null);
+        const message = error instanceof Error ? error.message : 'Não foi possível carregar seu perfil.';
+        notify(message, 'error');
       } finally {
         setAuthLoading(false);
       }
@@ -153,11 +167,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loginGoogle = useCallback(async () => {
     setAuthLoading(true);
     try {
-      await signInWithGoogle();
+      const credential = await signInWithGoogle();
+      const profile = await resolveUserProfile(credential.user);
+      setCurrentUser(profile);
+      setIsDemo(false);
     } catch (error) {
-      setAuthLoading(false);
+      setCurrentUser(null);
+      await signOutUser().catch(() => undefined);
       const message = error instanceof Error ? error.message : 'Falha ao entrar com Google.';
       notify(message, 'error');
+    } finally {
+      setAuthLoading(false);
     }
   }, [notify]);
 
@@ -195,20 +215,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
 
     if (db && !isDemo) {
-      await setDoc(doc(db, key, entity.id), entity as unknown as Record<string, unknown>);
+      await setDoc(
+        doc(db, key, entity.id),
+        withoutUndefined(entity) as Record<string, unknown>,
+      );
     }
 
     if (auditMessage && currentUser) {
       const audit: AuditLog = {
         id: crypto.randomUUID(),
-        organizationId: currentUser.organizationId,
         actorName: currentUser.name,
         action: auditMessage,
         entity: 'BABA MANAGER',
         createdAt: new Date().toISOString(),
+        ...(currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
       };
       setData((current) => ({ ...current, auditLogs: [audit, ...current.auditLogs] }));
-      if (db && !isDemo) await setDoc(doc(db, 'auditLogs', audit.id), audit);
+      if (db && !isDemo) {
+        try {
+          await setDoc(
+            doc(db, 'auditLogs', audit.id),
+            withoutUndefined(audit) as Record<string, unknown>,
+          );
+        } catch (error) {
+          console.error('Falha ao registrar auditoria:', error);
+        }
+      }
     }
   }, [currentUser, isDemo]);
 

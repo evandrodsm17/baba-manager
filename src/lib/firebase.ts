@@ -16,6 +16,7 @@ import {
   limit,
   query,
   setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import type { UserProfile } from '../types';
@@ -54,7 +55,9 @@ export function watchAuth(callback: (user: User | null) => void) {
   return onAuthStateChanged(auth, callback);
 }
 
-export async function resolveUserProfile(user: User): Promise<UserProfile> {
+const profileResolutions = new Map<string, Promise<UserProfile>>();
+
+async function resolveUserProfileOnce(user: User): Promise<UserProfile> {
   if (!db || !user.email) throw new Error('Não foi possível identificar o usuário.');
 
   const userRef = doc(db, 'users', user.uid);
@@ -67,10 +70,12 @@ export async function resolveUserProfile(user: User): Promise<UserProfile> {
   let organizationId: string | undefined;
   let playerId: string | undefined;
 
-  if (invite.exists() && invite.data().status !== 'disabled') {
+  if (invite.exists()) {
+    if (invite.data().status === 'disabled') {
+      throw new Error('Este acesso de gerenciador está desativado.');
+    }
     role = 'manager';
     organizationId = invite.data().organizationId;
-    await setDoc(invite.ref, { ...invite.data(), status: 'accepted', lastAccess: new Date().toISOString() });
   } else {
     const linkedPlayers = await getDocs(
       query(collection(db, 'players'), where('email', '==', email), limit(1)),
@@ -82,19 +87,43 @@ export async function resolveUserProfile(user: User): Promise<UserProfile> {
     }
   }
 
+  if (!organizationId) {
+    throw new Error('Esta conta Google ainda não possui acesso ao BABA MANAGER.');
+  }
+
+  const lastAccess = new Date().toISOString();
   const profile: UserProfile = {
     id: user.uid,
     uid: user.uid,
     name: user.displayName || email.split('@')[0],
     email,
-    photoUrl: user.photoURL || undefined,
     role,
     organizationId,
-    playerId,
     active: true,
-    lastAccess: new Date().toISOString(),
+    lastAccess,
+    ...(user.photoURL ? { photoUrl: user.photoURL } : {}),
+    ...(playerId ? { playerId } : {}),
   };
 
   await setDoc(userRef, profile);
+
+  if (invite.exists() && invite.data().status === 'pending') {
+    await updateDoc(invite.ref, {
+      status: 'accepted',
+      lastAccess,
+    });
+  }
+
   return profile;
+}
+
+export function resolveUserProfile(user: User): Promise<UserProfile> {
+  const pending = profileResolutions.get(user.uid);
+  if (pending) return pending;
+
+  const resolution = resolveUserProfileOnce(user).finally(() => {
+    profileResolutions.delete(user.uid);
+  });
+  profileResolutions.set(user.uid, resolution);
+  return resolution;
 }

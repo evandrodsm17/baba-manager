@@ -10,6 +10,7 @@ export function Managers() {
   const { data, saveEntity, notify } = useApp();
   const [searchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const managers = data.managerInvites.filter((manager) => `${manager.name} ${manager.email} ${manager.organizationName}`.toLowerCase().includes(search.toLowerCase()));
 
@@ -21,6 +22,10 @@ export function Managers() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const email = String(form.get('email')).trim().toLowerCase();
+    if (data.managerInvites.some((manager) => manager.email === email)) {
+      notify('Já existe um gerenciador cadastrado com este e-mail.', 'error');
+      return;
+    }
     const organizationId = createId('org');
     const organizationName = String(form.get('organizationName')).trim();
     const invite: ManagerInvite = {
@@ -39,10 +44,19 @@ export function Managers() {
       plan: String(form.get('plan')) as Organization['plan'],
       active: true,
     };
-    await saveEntity('organizations', organization);
-    await saveEntity('managerInvites', invite, 'convidou um novo gerenciador');
-    notify('Gerenciador criado. O acesso será ativado no primeiro login com Google.');
-    setModalOpen(false);
+    setSaving(true);
+    try {
+      await saveEntity('organizations', organization);
+      await saveEntity('managerInvites', invite, 'convidou um novo gerenciador');
+      notify('Gerenciador criado. O acesso será ativado no primeiro login com Google.');
+      setModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : 'Não foi possível criar o gerenciador.';
+      notify(message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleManager = async (manager: ManagerInvite) => {
@@ -96,7 +110,7 @@ export function Managers() {
             <span><Mail size={21} /></span>
             <div><strong>Ativação no primeiro acesso</strong><p>O convite ficará pendente. Quando este e-mail entrar com o Google, o perfil receberá automaticamente o nível Gerenciador e a organização acima.</p></div>
           </div>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={UserCog}>Criar acesso</Button></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)} disabled={saving}>Cancelar</Button><Button type="submit" icon={UserCog} loading={saving}>Criar acesso</Button></div>
         </form>
       </Modal>
     </>
