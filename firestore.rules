@@ -19,15 +19,25 @@ service cloud.firestore {
     }
 
     function isMaster() {
-      return hasProfile() && profile().role == 'master' && profile().active == true;
+      return hasProfile()
+        && profile().active == true
+        && (
+          request.auth.token.get('role', '') == 'master'
+          || profile().get('platformRole', '') == 'master'
+          || profile().role == 'master'
+        );
     }
 
     function isManager() {
-      return hasProfile() && profile().role == 'manager' && profile().active == true;
+      return hasProfile()
+        && profile().active == true
+        && validManagerAccess(profile());
     }
 
     function isPlayer() {
-      return hasProfile() && profile().role == 'player' && profile().active == true;
+      return hasProfile()
+        && profile().active == true
+        && validPlayerAccess(profile());
     }
 
     function sameOrganization(data) {
@@ -40,6 +50,51 @@ service cloud.firestore {
       return isMaster() || (isManager() && sameOrganization(data));
     }
 
+    function validManagerAccess(data) {
+      return data.role == 'manager'
+        && (
+          (
+            data.get('managerInviteId', '') is string
+            && data.get('managerInviteId', '') != ''
+            && exists(/databases/$(database)/documents/managerInvites/$(data.get('managerInviteId', '')))
+            && get(/databases/$(database)/documents/managerInvites/$(data.get('managerInviteId', ''))).data.email
+              == request.auth.token.email
+            && get(/databases/$(database)/documents/managerInvites/$(data.get('managerInviteId', ''))).data.status
+              != 'disabled'
+            && data.organizationId
+              == get(/databases/$(database)/documents/managerInvites/$(data.get('managerInviteId', ''))).data.organizationId
+          )
+          ||
+          (
+            exists(/databases/$(database)/documents/managerInvites/$(request.auth.token.email))
+            && get(/databases/$(database)/documents/managerInvites/$(request.auth.token.email)).data.status
+              != 'disabled'
+            && data.organizationId
+              == get(/databases/$(database)/documents/managerInvites/$(request.auth.token.email)).data.organizationId
+          )
+        );
+    }
+
+    function validPlayerAccess(data) {
+      return data.role == 'player'
+        && data.playerId is string
+        && exists(/databases/$(database)/documents/players/$(data.playerId))
+        && get(/databases/$(database)/documents/players/$(data.playerId)).data.email
+          == request.auth.token.email
+        && data.organizationId
+          == get(/databases/$(database)/documents/players/$(data.playerId)).data.organizationId;
+    }
+
+    function validOwnAccess(data) {
+      return (
+        data.role == 'master'
+        && (
+          request.auth.token.get('role', '') == 'master'
+          || (hasProfile() && (profile().get('platformRole', '') == 'master' || profile().role == 'master'))
+        )
+      ) || validManagerAccess(data) || validPlayerAccess(data);
+    }
+
     match /users/{userId} {
       allow read: if isMaster() || (signedIn() && request.auth.uid == userId);
 
@@ -48,33 +103,16 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.active == true
-        && (
-          (
-            request.resource.data.role == 'manager'
-            && exists(/databases/$(database)/documents/managerInvites/$(request.auth.token.email))
-            && get(/databases/$(database)/documents/managerInvites/$(request.auth.token.email)).data.status != 'disabled'
-            && request.resource.data.organizationId
-              == get(/databases/$(database)/documents/managerInvites/$(request.auth.token.email)).data.organizationId
-          )
-          ||
-          (
-            request.resource.data.role == 'player'
-            && request.resource.data.playerId is string
-            && exists(/databases/$(database)/documents/players/$(request.resource.data.playerId))
-            && get(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.email
-              == request.auth.token.email
-            && request.resource.data.organizationId
-              == get(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.organizationId
-          )
-        );
+        && validOwnAccess(request.resource.data);
 
       allow update: if isMaster()
         || (
           signedIn()
           && request.auth.uid == userId
-          && request.resource.data.role == resource.data.role
-          && request.resource.data.organizationId == resource.data.organizationId
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.email == resource.data.email
           && request.resource.data.active == resource.data.active
+          && validOwnAccess(request.resource.data)
         );
       allow delete: if isMaster();
     }
@@ -89,12 +127,12 @@ service cloud.firestore {
 
     match /managerInvites/{email} {
       allow read: if isMaster()
-        || (signedIn() && request.auth.token.email == email);
+        || (signedIn() && resource.data.email == request.auth.token.email);
       allow create, delete: if isMaster();
       allow update: if isMaster()
         || (
           signedIn()
-          && request.auth.token.email == email
+          && resource.data.email == request.auth.token.email
           && resource.data.status == 'pending'
           && request.resource.data.status == 'accepted'
           && request.resource.data.email == resource.data.email
@@ -155,6 +193,73 @@ service cloud.firestore {
         );
       allow update, delete: if isMaster()
         || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /statSubmissions/{submissionId} {
+      allow read: if isMaster()
+        || (isManager() && sameOrganization(resource.data))
+        || (
+          isPlayer()
+          && resource.data.playerId == profile().playerId
+          && sameOrganization(resource.data)
+        );
+
+      allow create: if isPlayer()
+        && request.resource.data.playerId == profile().playerId
+        && sameOrganization(request.resource.data)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.goals is int
+        && request.resource.data.goals >= 0
+        && request.resource.data.goals <= 30
+        && request.resource.data.assists is int
+        && request.resource.data.assists >= 0
+        && request.resource.data.assists <= 30
+        && request.resource.data.goals + request.resource.data.assists > 0
+        && exists(/databases/$(database)/documents/matches/$(request.resource.data.matchId))
+        && get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.organizationId
+          == profile().organizationId
+        && get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.status
+          == 'finished'
+        && exists(/databases/$(database)/documents/players/$(profile().playerId))
+        && request.resource.data.teamId
+          == get(/databases/$(database)/documents/players/$(profile().playerId)).data.teamId
+        && (
+          request.resource.data.teamId
+            == get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.homeTeamId
+          || request.resource.data.teamId
+            == get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.awayTeamId
+        );
+
+      allow update: if (
+          managerCanWrite(request.resource.data)
+          && resource.data.status == 'pending'
+          && request.resource.data.status in ['approved', 'rejected']
+          && request.resource.data.organizationId == resource.data.organizationId
+          && request.resource.data.playerId == resource.data.playerId
+          && request.resource.data.matchId == resource.data.matchId
+          && request.resource.data.teamId == resource.data.teamId
+          && request.resource.data.goals == resource.data.goals
+          && request.resource.data.assists == resource.data.assists
+        )
+        || (
+          isPlayer()
+          && resource.data.playerId == profile().playerId
+          && resource.data.status == 'rejected'
+          && request.resource.data.status == 'pending'
+          && request.resource.data.playerId == resource.data.playerId
+          && request.resource.data.matchId == resource.data.matchId
+          && request.resource.data.organizationId == resource.data.organizationId
+          && request.resource.data.teamId == resource.data.teamId
+          && request.resource.data.goals is int
+          && request.resource.data.goals >= 0
+          && request.resource.data.goals <= 30
+          && request.resource.data.assists is int
+          && request.resource.data.assists >= 0
+          && request.resource.data.assists <= 30
+          && request.resource.data.goals + request.resource.data.assists > 0
+        );
+
+      allow delete: if isMaster();
     }
 
     match /auditLogs/{logId} {

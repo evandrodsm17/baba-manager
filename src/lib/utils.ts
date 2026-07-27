@@ -40,7 +40,10 @@ export function getPlayerStats(players: Player[], matches: Match[]) {
     return {
       ...player,
       goals: leagueEvents.filter((event) => event.type === 'goal' && event.playerId === player.id).length,
-      assists: leagueEvents.filter((event) => event.type === 'goal' && event.assistPlayerId === player.id).length,
+      assists: leagueEvents.filter((event) => (
+        (event.type === 'goal' && event.assistPlayerId === player.id)
+        || (event.type === 'assist' && event.playerId === player.id)
+      )).length,
       yellow: leagueEvents.filter((event) => event.type === 'yellow' && event.playerId === player.id).length,
       red: leagueEvents.filter((event) => event.type === 'red' && event.playerId === player.id).length,
     };

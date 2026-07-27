@@ -9,6 +9,12 @@ export const demoUsers: Record<'master' | 'manager' | 'player', UserProfile> = {
     name: 'Evandro Mota',
     email: 'master@babamanager.app',
     role: 'master',
+    platformRole: 'master',
+    accesses: [
+      { id: 'master', role: 'master' },
+      { id: 'manager:rafael-demo', role: 'manager', organizationId: org, organizationName: 'Arena do Baba', managerInviteId: 'rafael-demo' },
+      { id: 'player:p1', role: 'player', organizationId: org, organizationName: 'Arena do Baba', playerId: 'p1', playerName: 'Carlos Eduardo', teamId: 't1' },
+    ],
     active: true,
     lastAccess: new Date().toISOString(),
   },
@@ -19,6 +25,11 @@ export const demoUsers: Record<'master' | 'manager' | 'player', UserProfile> = {
     email: 'rafael@arenadobaba.com',
     role: 'manager',
     organizationId: org,
+    managerInviteId: 'rafael@arenadobaba.com',
+    accesses: [
+      { id: 'manager:rafael@arenadobaba.com', role: 'manager', organizationId: org, organizationName: 'Arena do Baba', managerInviteId: 'rafael@arenadobaba.com' },
+      { id: 'player:p1', role: 'player', organizationId: org, organizationName: 'Arena do Baba', playerId: 'p1', playerName: 'Carlos Eduardo', teamId: 't1' },
+    ],
     active: true,
     lastAccess: new Date().toISOString(),
   },
@@ -30,6 +41,10 @@ export const demoUsers: Record<'master' | 'manager' | 'player', UserProfile> = {
     role: 'player',
     organizationId: org,
     playerId: 'p1',
+    accesses: [
+      { id: 'player:p1', role: 'player', organizationId: org, organizationName: 'Arena do Baba', playerId: 'p1', playerName: 'Carlos Eduardo', teamId: 't1' },
+      { id: 'manager:rafael@arenadobaba.com', role: 'manager', organizationId: org, organizationName: 'Arena do Baba', managerInviteId: 'rafael@arenadobaba.com' },
+    ],
     active: true,
     lastAccess: new Date().toISOString(),
   },
@@ -97,6 +112,20 @@ export const demoData: AppData = {
   checkins: [
     { id: 'c1', organizationId: org, matchId: 'm3', playerId: 'p1', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 42, validated: true },
     { id: 'c2', organizationId: org, matchId: 'm3', playerId: 'p2', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 88, validated: true },
+  ],
+  statSubmissions: [
+    {
+      id: 'm3-p1',
+      organizationId: org,
+      matchId: 'm3',
+      playerId: 'p1',
+      teamId: 't1',
+      goals: 2,
+      assists: 1,
+      note: 'Dois gols no primeiro tempo e uma assistência.',
+      status: 'pending',
+      createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
+    },
   ],
   managerInvites: [
     { id: 'rafael@arenadobaba.com', email: 'rafael@arenadobaba.com', name: 'Rafael Torres', organizationId: org, organizationName: 'Arena do Baba', status: 'accepted', createdAt: '2026-01-12T12:00:00.000Z', lastAccess: new Date(Date.now() - 3600000).toISOString() },

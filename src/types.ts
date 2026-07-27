@@ -1,6 +1,18 @@
 export type UserRole = 'master' | 'manager' | 'player';
 export type MatchStatus = 'scheduled' | 'live' | 'finished';
-export type EventType = 'goal' | 'yellow' | 'red';
+export type EventType = 'goal' | 'assist' | 'yellow' | 'red';
+
+export interface UserAccess {
+  id: string;
+  role: UserRole;
+  organizationId?: string;
+  organizationName?: string;
+  managerInviteId?: string;
+  playerId?: string;
+  playerName?: string;
+  teamId?: string;
+  teamName?: string;
+}
 
 export interface UserProfile {
   id: string;
@@ -10,7 +22,10 @@ export interface UserProfile {
   photoUrl?: string;
   role: UserRole;
   organizationId?: string;
+  managerInviteId?: string;
   playerId?: string;
+  accesses: UserAccess[];
+  platformRole?: 'master';
   active: boolean;
   lastAccess?: string;
 }
@@ -37,7 +52,9 @@ export interface Team {
 export interface Player {
   id: string;
   organizationId: string;
+  organizationName?: string;
   teamId: string;
+  teamName?: string;
   name: string;
   nickname?: string;
   email?: string;
@@ -106,6 +123,21 @@ export interface Checkin {
   validated: boolean;
 }
 
+export interface StatSubmission {
+  id: string;
+  organizationId: string;
+  matchId: string;
+  playerId: string;
+  teamId: string;
+  goals: number;
+  assists: number;
+  note?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
 export interface ManagerInvite {
   id: string;
   email: string;
@@ -134,6 +166,7 @@ export interface AppData {
   leagues: League[];
   matches: Match[];
   checkins: Checkin[];
+  statSubmissions: StatSubmission[];
   managerInvites: ManagerInvite[];
   auditLogs: AuditLog[];
 }

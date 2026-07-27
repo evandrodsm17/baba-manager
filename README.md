@@ -7,16 +7,19 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 ## Funcionalidades
 
 - autenticação com conta Google;
-- perfis Master, Gerenciador e Jogador;
+- acessos acumuláveis de Master, Gerenciador e Jogador na mesma conta Google;
+- troca de contexto entre organizações e times pelo menu do perfil;
 - organizações isoladas por `organizationId`;
 - equipes com nome, sigla, cor e escudo por URL;
 - jogadores com foto, apelido, e-mail, posições e número da camisa;
 - locais com coordenadas e raio autorizado para check-in;
 - partidas agendadas, ao vivo e finalizadas;
 - súmula com gols, assistências e cartões;
+- declaração de gols e assistências pelo jogador, com aprovação do gerenciador;
 - ligas com classificação, artilharia e controle disciplinar;
 - check-in pelo GPS do celular;
 - criação de gerenciadores pelo usuário Master;
+- miniaturas de locais com Google Maps;
 - registro de atividades administrativas;
 - modo demonstração quando o Firebase ainda não está configurado.
 
@@ -187,6 +190,7 @@ VITE_FIREBASE_PROJECT_ID=seu-project-id
 VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=seu-messaging-sender-id
 VITE_FIREBASE_APP_ID=seu-app-id
+VITE_GOOGLE_MAPS_API_KEY=sua-chave-opcional
 ```
 
 O nome de cada variável corresponde diretamente ao objeto `firebaseConfig`:
@@ -201,6 +205,19 @@ O nome de cada variável corresponde diretamente ao objeto `firebaseConfig`:
 | `appId` | `VITE_FIREBASE_APP_ID` |
 
 Todas as seis variáveis devem estar preenchidas. Caso alguma esteja vazia, o BABA MANAGER continuará no modo demonstração.
+
+`VITE_GOOGLE_MAPS_API_KEY` é opcional para o restante do sistema, mas necessária para renderizar as miniaturas interativas do Google Maps. Sem ela, o app mantém uma prévia simples e disponibiliza o link para abrir as coordenadas no Google Maps.
+
+#### Configurar o Google Maps
+
+1. No Google Cloud Console, selecione um projeto com faturamento configurado.
+2. Habilite a **Maps Embed API**.
+3. Crie uma chave de API.
+4. Restrinja a chave por **HTTP referrers** aos domínios usados pelo app, incluindo `http://localhost:5173/*` e o domínio da Vercel.
+5. Restrinja a chave à **Maps Embed API**.
+6. Salve a chave como `VITE_GOOGLE_MAPS_API_KEY`.
+
+A chave utilizada no navegador é visível para o usuário. A segurança deve ser feita pelas restrições de domínio e de API no Google Cloud. Consulte a [documentação oficial da Maps Embed API](https://developers.google.com/maps/documentation/embed/get-started).
 
 Depois de criar ou alterar `.env.local`, reinicie o servidor:
 
@@ -266,7 +283,9 @@ As regras implementam o seguinte isolamento:
 |---|---|
 | Master | Acessa todas as organizações, gerenciadores e auditorias |
 | Gerenciador | Gerencia somente os dados da própria organização |
-| Jogador | Consulta sua organização e cria somente o próprio check-in |
+| Jogador | Consulta sua organização, cria o próprio check-in e envia suas estatísticas para aprovação |
+
+Uma identidade Google pode acumular vários acessos. A permissão efetiva é validada pelo convite de gerenciador ou pelo cadastro de jogador correspondente; selecionar outro contexto no menu não cria privilégios por conta própria.
 
 Não substitua as regras por `allow read, write: if true`, mesmo durante testes com dados reais.
 
@@ -337,7 +356,7 @@ O script:
 - encontra o usuário pelo e-mail;
 - adiciona a custom claim `master`;
 - cria ou atualiza `users/{uid}`;
-- define `role: "master"` e `active: true`.
+- define `role: "master"`, `platformRole: "master"` e `active: true`.
 
 Saia da aplicação e entre novamente com Google para renovar a sessão.
 
@@ -353,12 +372,12 @@ Documentação oficial: [Configurar o Firebase Admin SDK](https://firebase.googl
 4. Informe exatamente o e-mail Google do gerenciador.
 5. Defina o nome da organização.
 
-O convite ficará pendente até o primeiro acesso do gerenciador.
+O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail pode receber convites para mais de uma organização.
 
 #### Teste do Gerenciador
 
-1. Saia da conta Master.
-2. Entre com a conta Google convidada.
+1. Entre com a conta Google convidada ou abra o menu do perfil se essa conta também for Master/Jogador.
+2. Selecione o acesso **Gerenciador** e a organização desejada.
 3. Crie uma equipe.
 4. Cadastre um local.
 5. Cadastre jogadores.
@@ -369,11 +388,13 @@ Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail qu
 
 #### Teste do Jogador
 
-1. Saia da conta Gerenciador.
-2. Entre com o e-mail Google cadastrado no jogador.
+1. Entre com o e-mail Google cadastrado no jogador ou abra o menu do perfil.
+2. Selecione o acesso **Jogador** e o vínculo desejado.
 3. Acesse a agenda.
 4. Abra **Check-in**.
 5. Autorize o acesso à localização do navegador.
+6. Em uma partida finalizada da sua equipe, envie seus gols e assistências.
+7. Volte ao acesso **Gerenciador** para aprovar ou recusar a declaração.
 
 A geolocalização funciona em `localhost` durante o desenvolvimento e em páginas HTTPS, como as publicadas pela Vercel.
 
@@ -392,6 +413,7 @@ O sistema cria e utiliza as seguintes coleções:
 | `leagues` | Ligas e regras disciplinares |
 | `matches` | Partidas, placares e súmulas |
 | `checkins` | Presenças validadas |
+| `statSubmissions` | Gols e assistências declarados pelos jogadores e seu status de aprovação |
 | `auditLogs` | Atividades administrativas |
 
 ## Publicação na Vercel
@@ -408,7 +430,7 @@ Build command: npm run build
 Output directory: dist
 ```
 
-5. Cadastre todas as variáveis `VITE_FIREBASE_*` em:
+5. Cadastre todas as variáveis `VITE_FIREBASE_*` e, se usar mapas interativos, `VITE_GOOGLE_MAPS_API_KEY` em:
 
 ```text
 Project Settings > Environment Variables
@@ -472,11 +494,13 @@ Use apenas o domínio, sem protocolo e sem porta.
 - confira `role`, `organizationId` e `active`;
 - saia e entre novamente após alterar o perfil.
 
-### O usuário Gerenciador entrou como Jogador
+### O acesso esperado não aparece no seletor
 
 - confira se o convite foi criado antes do primeiro acesso;
 - confirme que o e-mail do convite é igual ao e-mail Google;
-- verifique o documento em `managerInvites/{email}`.
+- verifique os documentos da coleção `managerInvites`;
+- para acesso de Jogador, confirme que o cadastro possui exatamente o mesmo e-mail Google;
+- recarregue a aplicação para que os vínculos sejam descobertos novamente.
 
 ### O jogador não foi vinculado
 
@@ -506,7 +530,7 @@ Os índices versionados estão em `firestore.indexes.json`.
 - não faça commit de `.env`, `.env.local` ou Service Accounts;
 - não coloque credenciais administrativas em variáveis `VITE_*`;
 - não use regras públicas no Firestore;
-- use contas Google diferentes para testar Master, Gerenciador e Jogador;
+- teste o seletor de acessos quando a mesma conta for Master, Gerenciador ou Jogador em mais de uma organização;
 - revise os registros em `auditLogs`;
 - mantenha `firestore.rules` versionado junto com o projeto.
 

@@ -31,10 +31,15 @@ export function Players() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const selectedPositions = form.getAll('positions').map(String);
+    const teamId = String(form.get('teamId') || '');
+    const selectedTeam = teams.find((team) => team.id === teamId);
+    const organization = data.organizations.find((item) => item.id === orgId);
     const entity: Player = {
       id: editing?.id || createId('player'),
       organizationId: orgId || '',
-      teamId: String(form.get('teamId') || ''),
+      organizationName: organization?.name,
+      teamId,
+      teamName: selectedTeam?.name,
       name: String(form.get('name') || '').trim(),
       nickname: String(form.get('nickname') || '').trim() || undefined,
       email: String(form.get('email') || '').trim().toLowerCase() || undefined,

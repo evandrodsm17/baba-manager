@@ -16,8 +16,7 @@ import {
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useApp } from '../context/AppContext';
-import { NavLink, useLocation } from '../lib/router';
-import type { UserRole } from '../types';
+import { NavLink, useLocation, useNavigate } from '../lib/router';
 import { Avatar, Logo } from './UI';
 
 const navByRole = {
@@ -44,17 +43,21 @@ const navByRole = {
 };
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { currentUser, logout, isDemo, switchDemoRole, toasts } = useApp();
+  const { currentUser, data, logout, isDemo, switchAccess, toasts } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (!currentUser) return null;
   const navigation = navByRole[currentUser.role];
   const roleLabel = currentUser.role === 'master' ? 'Master' : currentUser.role === 'manager' ? 'Gerenciador' : 'Jogador';
+  const organization = data.organizations.find((item) => item.id === currentUser.organizationId);
+  const accesses = currentUser.accesses || [];
 
-  const changeRole = (role: UserRole) => {
-    switchDemoRole(role);
+  const changeAccess = async (accessId: string) => {
+    await switchAccess(accessId);
+    navigate('/');
     setProfileOpen(false);
   };
 
@@ -71,7 +74,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <span className="sidebar__org-icon"><ShieldCheck size={18} /></span>
           <div>
             <small>{currentUser.role === 'master' ? 'Painel da plataforma' : 'Sua organização'}</small>
-            <strong>{currentUser.role === 'master' ? 'BABA Manager' : 'Arena do Baba'}</strong>
+            <strong>{currentUser.role === 'master' ? 'BABA Manager' : organization?.name || 'Organização atual'}</strong>
           </div>
           <ChevronDown size={15} />
         </div>
@@ -135,15 +138,27 @@ export function Shell({ children }: { children: ReactNode }) {
                     <Avatar name={currentUser.name} src={currentUser.photoUrl} />
                     <div><strong>{currentUser.name}</strong><small>{currentUser.email}</small></div>
                   </div>
-                  {isDemo && (
+                  {accesses.length > 1 && (
                     <div className="profile-menu__roles">
-                      <small>Alternar perfil de teste</small>
-                      {(['master', 'manager', 'player'] as UserRole[]).map((role) => (
-                        <button key={role} type="button" onClick={() => changeRole(role)} className={currentUser.role === role ? 'active' : ''}>
+                      <small>Alternar acesso</small>
+                      {accesses.map((access) => {
+                        const isCurrent = access.role === currentUser.role
+                          && access.organizationId === currentUser.organizationId
+                          && access.playerId === currentUser.playerId
+                          && access.managerInviteId === currentUser.managerInviteId;
+                        const accessRole = access.role === 'master' ? 'Master' : access.role === 'manager' ? 'Gerenciador' : 'Jogador';
+                        const accessContext = access.role === 'master'
+                          ? 'Plataforma BABA MANAGER'
+                          : access.role === 'manager'
+                            ? access.organizationName || `Organização ${access.organizationId?.slice(-6)}`
+                            : `${access.organizationName || access.organizationId?.slice(-6)} · ${access.teamName || access.playerName || 'Atleta'}`;
+                        return (
+                          <button key={access.id} type="button" onClick={() => changeAccess(access.id)} className={isCurrent ? 'active' : ''}>
                           <CircleUserRound size={16} />
-                          {role === 'master' ? 'Master' : role === 'manager' ? 'Gerenciador' : 'Jogador'}
+                          <span><strong>{accessRole}</strong><small>{accessContext}</small></span>
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   <button type="button" className="profile-menu__exit" onClick={logout}><LogOut size={16} />Sair</button>

@@ -1,6 +1,7 @@
 import { Crosshair, Edit3, MapPin, Navigation, Plus, Radio, Ruler } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Badge, Button, EmptyState, Modal, PageHeader } from '../components/UI';
+import { GoogleMapPreview } from '../components/GoogleMapPreview';
 import { createId, useApp } from '../context/AppContext';
 import type { Venue } from '../types';
 
@@ -65,14 +66,9 @@ export function Venues() {
       <PageHeader eyebrow="CAMPOS E QUADRAS" title="Locais" description="Cadastre coordenadas e defina o raio permitido para check-in." action={<Button icon={Plus} onClick={() => openForm()}>Novo local</Button>} />
       {venues.length ? (
         <div className="venues-grid">
-          {venues.map((venue, index) => (
+          {venues.map((venue) => (
             <article className="venue-card" key={venue.id}>
-              <div className={`mini-map mini-map--${(index % 3) + 1}`}>
-                <i className="mini-map__road mini-map__road--a" />
-                <i className="mini-map__road mini-map__road--b" />
-                <span><MapPin size={22} fill="currentColor" /></span>
-                <small>{venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}</small>
-              </div>
+              <GoogleMapPreview latitude={venue.latitude} longitude={venue.longitude} label={venue.name} />
               <div className="venue-card__body">
                 <div className="venue-card__title"><div><h2>{venue.name}</h2><p>{venue.address}</p></div><button className="icon-button" type="button" onClick={() => openForm(venue)}><Edit3 size={17} /></button></div>
                 <div className="venue-card__meta">

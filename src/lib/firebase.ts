@@ -13,13 +13,12 @@ import {
   getDoc,
   getDocs,
   getFirestore,
-  limit,
   query,
   setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
-import type { UserProfile } from '../types';
+import type { UserAccess, UserProfile } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -57,62 +56,116 @@ export function watchAuth(callback: (user: User | null) => void) {
 
 const profileResolutions = new Map<string, Promise<UserProfile>>();
 
+function profileForAccess(
+  user: User,
+  email: string,
+  access: UserAccess,
+  accesses: UserAccess[],
+  isPlatformMaster: boolean,
+  lastAccess: string,
+): UserProfile {
+  return {
+    id: user.uid,
+    uid: user.uid,
+    name: user.displayName || email.split('@')[0],
+    email,
+    role: access.role,
+    accesses,
+    active: true,
+    lastAccess,
+    ...(user.photoURL ? { photoUrl: user.photoURL } : {}),
+    ...(isPlatformMaster ? { platformRole: 'master' as const } : {}),
+    ...(access.organizationId ? { organizationId: access.organizationId } : {}),
+    ...(access.managerInviteId ? { managerInviteId: access.managerInviteId } : {}),
+    ...(access.playerId ? { playerId: access.playerId } : {}),
+  };
+}
+
+function storedProfile(profile: UserProfile) {
+  const stored = { ...profile } as Partial<UserProfile>;
+  delete stored.accesses;
+  return stored;
+}
+
 async function resolveUserProfileOnce(user: User): Promise<UserProfile> {
   if (!db || !user.email) throw new Error('Não foi possível identificar o usuário.');
 
   const userRef = doc(db, 'users', user.uid);
   const existing = await getDoc(userRef);
-  if (existing.exists()) return existing.data() as UserProfile;
-
   const email = user.email.trim().toLowerCase();
-  const invite = await getDoc(doc(db, 'managerInvites', email));
-  let role: UserProfile['role'] = 'player';
-  let organizationId: string | undefined;
-  let playerId: string | undefined;
+  const existingData = existing.exists() ? existing.data() as Partial<UserProfile> : undefined;
+  const token = await user.getIdTokenResult();
+  const isPlatformMaster = token.claims.role === 'master'
+    || existingData?.platformRole === 'master'
+    || existingData?.role === 'master';
 
-  if (invite.exists()) {
-    if (invite.data().status === 'disabled') {
-      throw new Error('Este acesso de gerenciador está desativado.');
-    }
-    role = 'manager';
-    organizationId = invite.data().organizationId;
-  } else {
-    const linkedPlayers = await getDocs(
-      query(collection(db, 'players'), where('email', '==', email), limit(1)),
-    );
-    const linkedPlayer = linkedPlayers.docs[0];
-    if (linkedPlayer) {
-      organizationId = linkedPlayer.data().organizationId;
-      playerId = linkedPlayer.id;
-    }
-  }
+  const [linkedInvites, linkedPlayers] = await Promise.all([
+    getDocs(query(collection(db, 'managerInvites'), where('email', '==', email))),
+    getDocs(query(collection(db, 'players'), where('email', '==', email))),
+  ]);
 
-  if (!organizationId) {
+  const accesses: UserAccess[] = [];
+  if (isPlatformMaster) accesses.push({ id: 'master', role: 'master' });
+
+  linkedInvites.docs.forEach((invite) => {
+    const inviteData = invite.data();
+    if (inviteData.status === 'disabled') return;
+    accesses.push({
+      id: `manager:${invite.id}`,
+      role: 'manager',
+      organizationId: inviteData.organizationId,
+      organizationName: inviteData.organizationName,
+      managerInviteId: invite.id,
+    });
+  });
+
+  linkedPlayers.docs.forEach((player) => {
+    const playerData = player.data();
+    accesses.push({
+      id: `player:${player.id}`,
+      role: 'player',
+      organizationId: playerData.organizationId,
+      organizationName: playerData.organizationName,
+      playerId: player.id,
+      playerName: playerData.name,
+      teamId: playerData.teamId,
+      teamName: playerData.teamName,
+    });
+  });
+
+  if (!accesses.length) {
     throw new Error('Esta conta Google ainda não possui acesso ao BABA MANAGER.');
   }
 
+  const rememberedAccessId = sessionStorage.getItem(`baba-active-access:${user.uid}`);
+  const selectedAccess = accesses.find((access) => access.id === rememberedAccessId)
+    || accesses.find((access) => (
+      access.role === existingData?.role
+      && access.organizationId === existingData?.organizationId
+      && (
+        access.role === 'master'
+        || access.managerInviteId === existingData?.managerInviteId
+        || access.playerId === existingData?.playerId
+      )
+    ))
+    || accesses[0];
+
   const lastAccess = new Date().toISOString();
-  const profile: UserProfile = {
-    id: user.uid,
-    uid: user.uid,
-    name: user.displayName || email.split('@')[0],
+  const profile = profileForAccess(
+    user,
     email,
-    role,
-    organizationId,
-    active: true,
+    selectedAccess,
+    accesses,
+    isPlatformMaster,
     lastAccess,
-    ...(user.photoURL ? { photoUrl: user.photoURL } : {}),
-    ...(playerId ? { playerId } : {}),
-  };
+  );
 
-  await setDoc(userRef, profile);
+  await setDoc(userRef, storedProfile(profile));
+  sessionStorage.setItem(`baba-active-access:${user.uid}`, selectedAccess.id);
 
-  if (invite.exists() && invite.data().status === 'pending') {
-    await updateDoc(invite.ref, {
-      status: 'accepted',
-      lastAccess,
-    });
-  }
+  await Promise.all(linkedInvites.docs
+    .filter((invite) => invite.data().status === 'pending')
+    .map((invite) => updateDoc(invite.ref, { status: 'accepted', lastAccess })));
 
   return profile;
 }
@@ -126,4 +179,23 @@ export function resolveUserProfile(user: User): Promise<UserProfile> {
   });
   profileResolutions.set(user.uid, resolution);
   return resolution;
+}
+
+export async function activateUserAccess(profile: UserProfile, access: UserAccess) {
+  if (!db || !auth?.currentUser) throw new Error('A sessão não está disponível.');
+  if (!profile.accesses.some((item) => item.id === access.id)) {
+    throw new Error('Este acesso não está disponível para sua conta.');
+  }
+
+  const nextProfile = profileForAccess(
+    auth.currentUser,
+    profile.email,
+    access,
+    profile.accesses,
+    profile.platformRole === 'master',
+    new Date().toISOString(),
+  );
+  await setDoc(doc(db, 'users', profile.uid), storedProfile(nextProfile));
+  sessionStorage.setItem(`baba-active-access:${profile.uid}`, access.id);
+  return nextProfile;
 }

@@ -3132,6 +3132,167 @@ img {
   }
 }
 
+/* Uploaded team artwork keeps its original proportions. */
+.team-logo {
+  flex: 0 0 auto;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.team-logo--sm { width: 31px; height: 35px; }
+.team-logo--md { width: 48px; height: 54px; }
+.team-logo--lg { width: 70px; height: 78px; }
+
+/* Google Maps preview */
+.mini-map iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+}
+
+.mini-map > a {
+  min-height: 30px;
+  padding: 6px 9px;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(81, 109, 88, 0.32);
+  border-radius: 7px;
+  color: #173c25;
+  background: rgba(245, 251, 247, 0.94);
+  box-shadow: 0 4px 14px rgba(11, 31, 18, 0.14);
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.mini-map > a:hover {
+  color: #0a170e;
+  background: #d9ff8a;
+}
+
+.mini-map--google > small {
+  color: #e5f0e9;
+  background: rgba(8, 25, 14, 0.78);
+}
+
+/* Multiple accesses for a single Google identity */
+.profile-menu__roles button > span {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.profile-menu__roles button > span strong {
+  font-size: inherit;
+}
+
+.profile-menu__roles button > span small {
+  max-width: 175px;
+  overflow: hidden;
+  color: #8ea097;
+  font-size: 10px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Player-submitted statistics */
+.stat-review-panel {
+  grid-column: 1;
+}
+
+.match-detail-aside {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.stat-review-list {
+  display: grid;
+  gap: 10px;
+}
+
+.stat-review-item {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #102219;
+}
+
+.stat-review-item > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #d5ff7b;
+  background: #264127;
+}
+
+.stat-review-item > div:not(.stat-review-item__actions) {
+  min-width: 0;
+}
+
+.stat-review-item strong {
+  font-size: 13px;
+}
+
+.stat-review-item p {
+  margin-top: 3px;
+  color: #b4c0b8;
+  font-size: 12px;
+}
+
+.stat-review-item small {
+  margin-top: 5px;
+  display: block;
+  color: #8fa096;
+}
+
+.stat-review-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.event-icon--assist {
+  color: #b9dbff;
+  background: #1f3b50;
+}
+
+@media (max-width: 860px) {
+  .stat-review-panel,
+  .match-detail-aside {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .stat-review-item {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .stat-review-item__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 430px) {
   .login-panel { padding: 30px 21px; }
   .login-card h2 { font-size: 26px; }
@@ -4401,5 +4562,74 @@ img {
     transform: translateX(-50%);
     border-radius: 0 0 4px 4px;
     background: var(--lime);
+  }
+}
+
+/* Final desktop accessibility pass: keep functional text comfortably readable. */
+@media (min-width: 681px) {
+  .main-content {
+    font-size: 14px;
+  }
+
+  .main-content small {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .sidebar__org small,
+  .sidebar__label,
+  .profile-menu__roles > small,
+  .demo-pill {
+    font-size: 11px;
+  }
+
+  .sidebar__org strong,
+  .sidebar__link,
+  .sidebar__help strong,
+  .sidebar__help small,
+  .sidebar__help button,
+  .sidebar__logout {
+    font-size: 13px;
+  }
+
+  .profile-menu__trigger strong,
+  .profile-menu__identity strong {
+    font-size: 13px;
+  }
+
+  .profile-menu__trigger small,
+  .profile-menu__identity small,
+  .profile-menu__roles button > span small {
+    font-size: 11px;
+  }
+
+  .profile-menu__roles button,
+  .profile-menu__exit,
+  .badge,
+  .table-head,
+  .segmented button,
+  .geo-label {
+    font-size: 12px;
+  }
+
+  .stat-card__footer,
+  .activity-row small,
+  .player-cell small,
+  .form label > span small,
+  .toggle-field > span small,
+  .form-tip span,
+  .modal__header p {
+    font-size: 11px;
+  }
+
+  .stat-card__label,
+  .toolbar__summary,
+  .toolbar__search input,
+  .toolbar__select select,
+  .match-card__bottom,
+  .timeline__item p,
+  .venue-card__title p,
+  .venue-card__meta > span {
+    font-size: 13px;
   }
 }

@@ -25,6 +25,7 @@ try {
     email,
     photoUrl: user.photoURL || null,
     role: 'master',
+    platformRole: 'master',
     active: true,
     lastAccess: new Date().toISOString(),
   }, { merge: true });

@@ -92,7 +92,7 @@ export function TeamMark({
   size?: 'sm' | 'md' | 'lg';
 }) {
   return badgeUrl ? (
-    <img className={`team-mark team-mark--${size}`} src={badgeUrl} alt={`Escudo ${name}`} />
+    <img className={`team-logo team-logo--${size}`} src={badgeUrl} alt={`Escudo ${name}`} />
   ) : (
     <span
       className={`team-mark team-mark--${size}`}

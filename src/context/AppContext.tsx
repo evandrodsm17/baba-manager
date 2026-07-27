@@ -19,7 +19,7 @@ import {
   type Query,
 } from 'firebase/firestore';
 import { demoData, demoUsers } from '../data/demo';
-import { db, isFirebaseConfigured, resolveUserProfile, signInWithGoogle, signOutUser, watchAuth } from '../lib/firebase';
+import { activateUserAccess, db, isFirebaseConfigured, resolveUserProfile, signInWithGoogle, signOutUser, watchAuth } from '../lib/firebase';
 import type { AppData, AuditLog, UserProfile, UserRole } from '../types';
 
 type DataKey = keyof AppData;
@@ -40,6 +40,7 @@ interface AppContextValue {
   loginGoogle: () => Promise<void>;
   enterDemo: (role: UserRole) => void;
   switchDemoRole: (role: UserRole) => void;
+  switchAccess: (accessId: string) => Promise<void>;
   logout: () => Promise<void>;
   saveEntity: <K extends DataKey>(key: K, entity: DataEntity<K>, auditMessage?: string) => Promise<void>;
   removeEntity: (key: DataKey, id: string, auditMessage?: string) => Promise<void>;
@@ -47,7 +48,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-const storageKey = 'baba-manager-demo-data-v1';
+const storageKey = 'baba-manager-demo-data-v2';
 
 const emptyData: AppData = {
   organizations: [],
@@ -57,6 +58,7 @@ const emptyData: AppData = {
   leagues: [],
   matches: [],
   checkins: [],
+  statSubmissions: [],
   managerInvites: [],
   auditLogs: [],
 };
@@ -152,9 +154,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subscribe('organizations', query(collection(firestore, 'organizations')));
       subscribe('managerInvites', query(collection(firestore, 'managerInvites')));
       subscribe('auditLogs', query(collection(firestore, 'auditLogs')));
+      subscribe('statSubmissions', query(collection(firestore, 'statSubmissions')));
     } else if (organizationId) {
       subscribe('organizations', query(collection(firestore, 'organizations'), where('__name__', '==', organizationId)));
       subscribe('auditLogs', query(collection(firestore, 'auditLogs'), where('organizationId', '==', organizationId)));
+      if (currentUser.role === 'manager') {
+        subscribe('statSubmissions', query(collection(firestore, 'statSubmissions'), where('organizationId', '==', organizationId)));
+      } else if (currentUser.playerId) {
+        subscribe('statSubmissions', query(collection(firestore, 'statSubmissions'), where('playerId', '==', currentUser.playerId)));
+      }
     }
 
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
@@ -195,10 +203,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     notify(`Visão alterada para ${role === 'master' ? 'Master' : role === 'manager' ? 'Gerenciador' : 'Jogador'}.`, 'info');
   }, [isDemo, notify]);
 
+  const switchAccess = useCallback(async (accessId: string) => {
+    if (!currentUser) return;
+    const access = currentUser.accesses.find((item) => item.id === accessId);
+    if (!access || (
+      access.role === currentUser.role
+      && access.organizationId === currentUser.organizationId
+      && access.playerId === currentUser.playerId
+      && access.managerInviteId === currentUser.managerInviteId
+    )) return;
+
+    setAuthLoading(true);
+    try {
+      let nextProfile: UserProfile;
+      if (isDemo) {
+        nextProfile = {
+          id: currentUser.id,
+          uid: currentUser.uid,
+          name: currentUser.name,
+          email: currentUser.email,
+          role: access.role,
+          accesses: currentUser.accesses,
+          active: currentUser.active,
+          lastAccess: new Date().toISOString(),
+          ...(currentUser.photoUrl ? { photoUrl: currentUser.photoUrl } : {}),
+          ...(currentUser.platformRole ? { platformRole: currentUser.platformRole } : {}),
+          ...(access.organizationId ? { organizationId: access.organizationId } : {}),
+          ...(access.managerInviteId ? { managerInviteId: access.managerInviteId } : {}),
+          ...(access.playerId ? { playerId: access.playerId } : {}),
+        };
+      } else {
+        nextProfile = await activateUserAccess(currentUser, access);
+        setData(emptyData);
+      }
+      setCurrentUser(nextProfile);
+      notify(`Acesso alterado para ${access.role === 'master' ? 'Master' : access.role === 'manager' ? 'Gerenciador' : 'Jogador'}.`, 'info');
+    } catch (error) {
+      console.error(error);
+      notify(error instanceof Error ? error.message : 'Não foi possível alternar o acesso.', 'error');
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [currentUser, isDemo, notify]);
+
   const logout = useCallback(async () => {
     sessionStorage.removeItem('baba-demo-role');
     if (!isDemo) await signOutUser();
     setCurrentUser(null);
+    if (!isDemo) setData(emptyData);
   }, [isDemo]);
 
   const saveEntity = useCallback(async <K extends DataKey>(
@@ -262,11 +314,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loginGoogle,
     enterDemo,
     switchDemoRole,
+    switchAccess,
     logout,
     saveEntity,
     removeEntity,
     notify,
-  }), [data, currentUser, authLoading, isDemo, toasts, loginGoogle, enterDemo, switchDemoRole, logout, saveEntity, removeEntity, notify]);
+  }), [data, currentUser, authLoading, isDemo, toasts, loginGoogle, enterDemo, switchDemoRole, switchAccess, logout, saveEntity, removeEntity, notify]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

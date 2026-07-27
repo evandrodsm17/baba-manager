@@ -1,13 +1,17 @@
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   CheckCircle2,
+  ClipboardCheck,
   MapPin,
   Plus,
   Radio,
+  Send,
   ShieldAlert,
   Trophy,
   UsersRound,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { MatchCard } from '../components/MatchCard';
@@ -15,7 +19,7 @@ import { Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../compo
 import { createId, useApp } from '../context/AppContext';
 import { formatLongDate, playerDisplayName } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
-import type { EventType, Match, MatchEvent } from '../types';
+import type { EventType, Match, MatchEvent, StatSubmission } from '../types';
 
 export function Matches() {
   const params = useParams();
@@ -30,11 +34,13 @@ function MatchesList() {
   const [status, setStatus] = useState<'all' | Match['status']>('all');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
+  const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const teams = data.teams.filter((team) => team.organizationId === orgId);
   const matches = useMemo(() => data.matches
     .filter((match) => match.organizationId === orgId)
+    .filter((match) => canManage || !activePlayer || match.homeTeamId === activePlayer.teamId || match.awayTeamId === activePlayer.teamId)
     .filter((match) => status === 'all' || match.status === status)
-    .sort((a, b) => status === 'finished' ? +new Date(b.startsAt) - +new Date(a.startsAt) : +new Date(a.startsAt) - +new Date(b.startsAt)), [data.matches, orgId, status]);
+    .sort((a, b) => status === 'finished' ? +new Date(b.startsAt) - +new Date(a.startsAt) : +new Date(a.startsAt) - +new Date(b.startsAt)), [data.matches, orgId, status, canManage, activePlayer]);
 
   useEffect(() => {
     if (searchParams.get('nova') === '1' && canManage) setModalOpen(true);
@@ -122,6 +128,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const match = data.matches.find((item) => item.id === matchId);
   const [resultOpen, setResultOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [eventTeam, setEventTeam] = useState('');
   const canManage = currentUser?.role === 'manager';
 
@@ -131,6 +138,17 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const venue = data.venues.find((item) => item.id === match.venueId);
   const league = data.leagues.find((item) => item.id === match.leagueId);
   const checkedIn = data.checkins.filter((checkin) => checkin.matchId === match.id && checkin.validated);
+  const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
+  const playerCanSubmit = currentUser?.role === 'player'
+    && match.status === 'finished'
+    && Boolean(activePlayer)
+    && (activePlayer?.teamId === match.homeTeamId || activePlayer?.teamId === match.awayTeamId);
+  const playerSubmission = data.statSubmissions.find((submission) => (
+    submission.matchId === match.id && submission.playerId === activePlayer?.id
+  ));
+  const pendingSubmissions = data.statSubmissions.filter((submission) => (
+    submission.matchId === match.id && submission.status === 'pending'
+  ));
   if (!home || !away) return null;
 
   const saveResult = async (event: FormEvent<HTMLFormElement>) => {
@@ -171,6 +189,65 @@ function MatchDetails({ matchId }: { matchId: string }) {
 
   const teamPlayers = data.players.filter((player) => player.teamId === eventTeam);
 
+  const submitStats = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!activePlayer) return;
+    const form = new FormData(event.currentTarget);
+    const goals = Number(form.get('goals')) || 0;
+    const assists = Number(form.get('assists')) || 0;
+    if (goals === 0 && assists === 0) {
+      notify('Informe ao menos um gol ou uma assistência.', 'error');
+      return;
+    }
+    const submission: StatSubmission = {
+      id: playerSubmission?.id || `${match.id}-${activePlayer.id}`,
+      organizationId: match.organizationId,
+      matchId: match.id,
+      playerId: activePlayer.id,
+      teamId: activePlayer.teamId,
+      goals,
+      assists,
+      note: String(form.get('note') || '').trim() || undefined,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    await saveEntity('statSubmissions', submission, 'enviou estatísticas para aprovação');
+    notify('Seus números foram enviados ao gerenciador.');
+    setStatsOpen(false);
+  };
+
+  const reviewSubmission = async (submission: StatSubmission, approved: boolean) => {
+    if (submission.status !== 'pending') return;
+    if (approved) {
+      const claimedEvents: MatchEvent[] = [
+        ...Array.from({ length: submission.goals }, (_, index) => ({
+          id: `${submission.id}-goal-${index + 1}`,
+          type: 'goal' as const,
+          playerId: submission.playerId,
+          teamId: submission.teamId,
+          minute: 0,
+        })),
+        ...Array.from({ length: submission.assists }, (_, index) => ({
+          id: `${submission.id}-assist-${index + 1}`,
+          type: 'assist' as const,
+          playerId: submission.playerId,
+          teamId: submission.teamId,
+          minute: 0,
+        })),
+      ].filter((event) => !match.events.some((existingEvent) => existingEvent.id === event.id));
+      if (claimedEvents.length) {
+        await saveEntity('matches', { ...match, events: [...match.events, ...claimedEvents] }, 'aprovou estatísticas enviadas por jogador');
+      }
+    }
+    await saveEntity('statSubmissions', {
+      ...submission,
+      status: approved ? 'approved' : 'rejected',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: currentUser?.uid,
+    }, approved ? 'aprovou uma declaração de estatísticas' : 'recusou uma declaração de estatísticas');
+    notify(approved ? 'Estatísticas aprovadas e adicionadas à súmula.' : 'Declaração recusada.');
+  };
+
   return (
     <>
       <button className="back-link" type="button" onClick={() => navigate('/partidas')}><ArrowLeft size={17} /> Voltar para partidas</button>
@@ -195,6 +272,24 @@ function MatchDetails({ matchId }: { matchId: string }) {
             <Button icon={CheckCircle2} onClick={() => setResultOpen(true)}>Registrar resultado</Button>
           </div>
         )}
+        {playerCanSubmit && (
+          <div className="match-detail-hero__actions">
+            <Button
+              icon={Send}
+              variant={playerSubmission?.status === 'approved' ? 'secondary' : 'primary'}
+              disabled={playerSubmission?.status === 'pending' || playerSubmission?.status === 'approved'}
+              onClick={() => setStatsOpen(true)}
+            >
+              {playerSubmission?.status === 'pending'
+                ? 'Aguardando aprovação'
+                : playerSubmission?.status === 'approved'
+                  ? 'Estatísticas aprovadas'
+                  : playerSubmission?.status === 'rejected'
+                    ? 'Reenviar estatísticas'
+                    : 'Informar gols e assistências'}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="match-detail-grid">
@@ -209,7 +304,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
                   <strong>{item.minute}'</strong>
                   <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? '⚽' : ''}</span>
                   <div>
-                    <p><b>{item.type === 'goal' ? 'Gol' : item.type === 'yellow' ? 'Cartão amarelo' : 'Cartão vermelho'}</b> · {playerDisplayName(player)}</p>
+                    <p><b>{item.type === 'goal' ? 'Gol' : item.type === 'assist' ? 'Assistência' : item.type === 'yellow' ? 'Cartão amarelo' : 'Cartão vermelho'}</b> · {playerDisplayName(player)}</p>
                     {assist && <small>Assistência de {playerDisplayName(assist)}</small>}
                   </div>
                 </div>
@@ -217,6 +312,33 @@ function MatchDetails({ matchId }: { matchId: string }) {
             }) : <EmptyState title="Súmula vazia" description="Os eventos registrados durante a partida aparecerão aqui." />}
           </div>
         </section>
+        {canManage && pendingSubmissions.length > 0 && (
+          <section className="panel stat-review-panel">
+            <div className="section-header">
+              <div><h2>Estatísticas enviadas pelos jogadores</h2><p>Confira antes de adicionar à súmula oficial</p></div>
+              <Badge tone="warning">{pendingSubmissions.length} pendente{pendingSubmissions.length > 1 ? 's' : ''}</Badge>
+            </div>
+            <div className="stat-review-list">
+              {pendingSubmissions.map((submission) => {
+                const player = data.players.find((item) => item.id === submission.playerId);
+                return (
+                  <article className="stat-review-item" key={submission.id}>
+                    <span><ClipboardCheck size={19} /></span>
+                    <div>
+                      <strong>{playerDisplayName(player)}</strong>
+                      <p>{submission.goals} gol{submission.goals === 1 ? '' : 's'} · {submission.assists} assistência{submission.assists === 1 ? '' : 's'}</p>
+                      {submission.note && <small>{submission.note}</small>}
+                    </div>
+                    <div className="stat-review-item__actions">
+                      <Button variant="ghost" icon={X} onClick={() => reviewSubmission(submission, false)}>Recusar</Button>
+                      <Button icon={Check} onClick={() => reviewSubmission(submission, true)}>Aprovar</Button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
         <aside className="match-detail-aside">
           <section className="panel detail-info-card">
             <h3>Informações</h3>
@@ -251,6 +373,20 @@ function MatchDetails({ matchId }: { matchId: string }) {
           <label><span>Assistência <small>(preencha apenas para gol)</small></span><select name="assistPlayerId" defaultValue=""><option value="">Sem assistência</option>{teamPlayers.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label>
           <div className="form-tip form-tip--warning"><ShieldAlert size={18} /><p><strong>Regra disciplinar</strong><span>Cartões em partidas de liga serão contabilizados para possíveis suspensões.</span></p></div>
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setEventOpen(false)}>Cancelar</Button><Button type="submit">Adicionar à súmula</Button></div>
+        </form>
+      </Modal>
+
+      <Modal open={statsOpen} onClose={() => setStatsOpen(false)} title="Informar suas estatísticas" description="O gerenciador precisará aprovar os números antes de entrarem na súmula.">
+        <form className="form" onSubmit={submitStats}>
+          <div className="form-row form-row--2">
+            <label><span>Gols marcados</span><input name="goals" type="number" min="0" max="30" required defaultValue={playerSubmission?.goals || 0} /></label>
+            <label><span>Assistências</span><input name="assists" type="number" min="0" max="30" required defaultValue={playerSubmission?.assists || 0} /></label>
+          </div>
+          <label><span>Observação <small>(opcional)</small></span><textarea name="note" rows={3} defaultValue={playerSubmission?.note} placeholder="Explique algum lance se achar necessário." /></label>
+          {playerSubmission?.status === 'rejected' && (
+            <div className="form-tip form-tip--warning"><ShieldAlert size={18} /><p><strong>Envio anterior recusado</strong><span>Revise os números antes de enviar novamente.</span></p></div>
+          )}
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setStatsOpen(false)}>Cancelar</Button><Button type="submit" icon={Send}>Enviar para aprovação</Button></div>
         </form>
       </Modal>
     </>

@@ -22,14 +22,10 @@ export function Managers() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const email = String(form.get('email')).trim().toLowerCase();
-    if (data.managerInvites.some((manager) => manager.email === email)) {
-      notify('Já existe um gerenciador cadastrado com este e-mail.', 'error');
-      return;
-    }
     const organizationId = createId('org');
     const organizationName = String(form.get('organizationName')).trim();
     const invite: ManagerInvite = {
-      id: email,
+      id: createId('invite'),
       email,
       name: String(form.get('name')).trim(),
       organizationId,
