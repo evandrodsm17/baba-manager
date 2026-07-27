@@ -80,6 +80,7 @@ export interface League {
   organizationId: string;
   name: string;
   season: string;
+  imageUrl?: string;
   teamIds: string[];
   status: 'active' | 'finished' | 'draft';
   yellowCardLimit: number;
@@ -125,6 +126,7 @@ export interface PublicLeagueSnapshot {
   organizationName: string;
   name: string;
   season: string;
+  imageUrl?: string;
   teamIds: string[];
   status: League['status'];
   yellowCardLimit: number;

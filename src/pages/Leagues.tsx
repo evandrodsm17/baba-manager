@@ -1,4 +1,4 @@
-import { AlertTriangle, Copy, ExternalLink, Globe2, Medal, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Medal, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
@@ -12,6 +12,7 @@ export function Leagues() {
   const leagues = data.leagues.filter((league) => league.organizationId === orgId);
   const [selectedId, setSelectedId] = useState(leagues.find((league) => league.status === 'active')?.id || leagues[0]?.id);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingLeague, setEditingLeague] = useState<League | null>(null);
   const [copying, setCopying] = useState(false);
   const selected = leagues.find((league) => league.id === selectedId);
   const leagueMatches = data.matches.filter((match) => match.leagueId === selected?.id);
@@ -39,23 +40,31 @@ export function Leagues() {
     }
   }, [leagues, selectedId]);
 
-  const createLeague = async (event: FormEvent<HTMLFormElement>) => {
+  const openLeagueForm = (league?: League) => {
+    setEditingLeague(league || null);
+    setModalOpen(true);
+  };
+
+  const saveLeague = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const entity: League = {
-      id: createId('league'),
+      ...(editingLeague || {}),
+      id: editingLeague?.id || createId('league'),
       organizationId: orgId || '',
       name: String(form.get('name')).trim(),
       season: String(form.get('season')).trim(),
+      imageUrl: String(form.get('imageUrl') || '').trim() || undefined,
       teamIds: form.getAll('teamIds').map(String),
-      status: 'active',
+      status: editingLeague?.status || 'active',
       yellowCardLimit: Number(form.get('yellowCardLimit')) || 3,
       redCardSuspension: Number(form.get('redCardSuspension')) || 1,
     };
-    await saveEntity('leagues', entity, 'criou uma liga');
+    await saveEntity('leagues', entity, editingLeague ? 'atualizou uma liga' : 'criou uma liga');
     setSelectedId(entity.id);
-    notify('Liga criada. Os próximos resultados já podem valer pontos.');
+    notify(editingLeague ? 'Liga atualizada.' : 'Liga criada. Os próximos resultados já podem valer pontos.');
     setModalOpen(false);
+    setEditingLeague(null);
   };
 
   const togglePublication = async () => {
@@ -93,13 +102,16 @@ export function Leagues() {
         action={canManage ? (
           <div className="page-header__actions">
             {selected && (
-              selected.isPublic ? (
-                <Button variant="secondary" icon={ExternalLink} onClick={() => window.open(`/liga/${selected.id}`, '_blank', 'noopener,noreferrer')}>Página pública</Button>
-              ) : (
-                <Button variant="secondary" icon={Globe2} onClick={togglePublication}>Publicar liga selecionada</Button>
-              )
+              <>
+                <Button variant="ghost" icon={Edit3} onClick={() => openLeagueForm(selected)}>Editar liga</Button>
+                {selected.isPublic ? (
+                  <Button variant="secondary" icon={ExternalLink} onClick={() => window.open(`/liga/${selected.id}`, '_blank', 'noopener,noreferrer')}>Página pública</Button>
+                ) : (
+                  <Button variant="secondary" icon={Globe2} onClick={togglePublication}>Publicar liga selecionada</Button>
+                )}
+              </>
             )}
-            <Button icon={Plus} onClick={() => setModalOpen(true)}>Nova liga</Button>
+            <Button icon={Plus} onClick={() => openLeagueForm()}>Nova liga</Button>
           </div>
         ) : undefined}
       />
@@ -117,8 +129,9 @@ export function Leagues() {
 
           {selected && (
             <>
-              <div className="league-banner">
-                <div><span className="eyebrow"><Sparkles size={14} /> TEMPORADA {selected.season}</span><h2>{selected.name}</h2><p>{leagueTeamIds.length} equipes · {leagueMatches.filter((match) => match.status === 'finished').length} partidas realizadas</p></div>
+              <div className={`league-banner ${selected.imageUrl ? 'league-banner--with-image' : ''}`}>
+                {selected.imageUrl && <img className="league-banner__image" src={selected.imageUrl} alt={`Imagem da liga ${selected.name}`} />}
+                <div className="league-banner__content"><span className="eyebrow"><Sparkles size={14} /> TEMPORADA {selected.season}</span><h2>{selected.name}</h2><p>{leagueTeamIds.length} equipes · {leagueMatches.filter((match) => match.status === 'finished').length} partidas realizadas</p></div>
                 <div className="league-banner__rules"><span><strong>{selected.yellowCardLimit}</strong><small>amarelos = suspensão</small></span><span><strong>{selected.redCardSuspension}</strong><small>jogo por vermelho</small></span></div>
               </div>
 
@@ -207,25 +220,33 @@ export function Leagues() {
           )}
         </>
       ) : (
-        <EmptyState title="Nenhuma liga criada" description="Crie uma competição para gerar classificação e estatísticas oficiais." action={canManage ? <Button icon={Plus} onClick={() => setModalOpen(true)}>Criar liga</Button> : undefined} />
+        <EmptyState title="Nenhuma liga criada" description="Crie uma competição para gerar classificação e estatísticas oficiais." action={canManage ? <Button icon={Plus} onClick={() => openLeagueForm()}>Criar liga</Button> : undefined} />
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Criar nova liga" description="Escolha as equipes e defina as regras disciplinares." size="lg">
-        <form className="form" onSubmit={createLeague}>
+      <Modal
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditingLeague(null); }}
+        title={editingLeague ? 'Editar liga' : 'Criar nova liga'}
+        description="Defina a identidade, as equipes e as regras disciplinares."
+        size="lg"
+      >
+        <form className="form" onSubmit={saveLeague}>
           <div className="form-row form-row--2">
-            <label><span>Nome da competição</span><input name="name" required placeholder="Ex.: Copa Resenha" /></label>
-            <label><span>Temporada</span><input name="season" required defaultValue={new Date().getFullYear()} /></label>
+            <label><span>Nome da competição</span><input name="name" required defaultValue={editingLeague?.name} placeholder="Ex.: Copa Resenha" /></label>
+            <label><span>Temporada</span><input name="season" required defaultValue={editingLeague?.season || new Date().getFullYear()} /></label>
           </div>
+          <label><span>URL da imagem da liga <small>(opcional)</small></span><input name="imageUrl" type="url" defaultValue={editingLeague?.imageUrl} placeholder="https://..." /></label>
           <fieldset className="team-picker">
             <legend>Equipes participantes</legend>
-            <div>{data.teams.filter((team) => team.organizationId === orgId).map((team) => <label key={team.id}><input type="checkbox" name="teamIds" value={team.id} /><TeamMark {...team} size="sm" /><span>{team.name}</span><i /></label>)}</div>
+            <div>{data.teams.filter((team) => team.organizationId === orgId).map((team) => <label key={team.id}><input type="checkbox" name="teamIds" value={team.id} defaultChecked={editingLeague?.teamIds.includes(team.id)} /><TeamMark {...team} size="sm" /><span>{team.name}</span><i /></label>)}</div>
           </fieldset>
           <div className="form-row form-row--2">
-            <label><span>Limite de cartões amarelos</span><input name="yellowCardLimit" type="number" min="1" defaultValue="3" /></label>
-            <label><span>Jogos de suspensão por vermelho</span><input name="redCardSuspension" type="number" min="1" defaultValue="1" /></label>
+            <label><span>Limite de cartões amarelos</span><input name="yellowCardLimit" type="number" min="1" defaultValue={editingLeague?.yellowCardLimit || 3} /></label>
+            <label><span>Jogos de suspensão por vermelho</span><input name="redCardSuspension" type="number" min="1" defaultValue={editingLeague?.redCardSuspension || 1} /></label>
           </div>
+          <div className="form-tip"><ImageIcon size={18} /><p><strong>Imagem da competição</strong><span>A URL será usada na gestão e na página pública sem distorcer a proporção original.</span></p></div>
           <div className="form-tip"><ShieldCheck size={18} /><p><strong>Controle automático</strong><span>Cartões das partidas desta liga alimentarão a central disciplinar.</span></p></div>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={Trophy}>Criar liga</Button></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => { setModalOpen(false); setEditingLeague(null); }}>Cancelar</Button><Button type="submit" icon={Trophy}>{editingLeague ? 'Salvar alterações' : 'Criar liga'}</Button></div>
         </form>
       </Modal>
     </>

@@ -51,6 +51,7 @@ export function buildPublicLeagueSnapshot(data: AppData, league: League) {
     organizationName: organization?.name || 'Organização',
     name: league.name,
     season: league.season,
+    ...(league.imageUrl ? { imageUrl: league.imageUrl } : {}),
     teamIds,
     status: league.status,
     yellowCardLimit: league.yellowCardLimit,

@@ -18,8 +18,9 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - placar calculado automaticamente pelos eventos de gol;
 - finalização com bloqueio da súmula e reabertura controlada pelo gerenciador;
 - declaração de gols e assistências pelo jogador, com aprovação do gerenciador;
-- ligas com classificação, artilharia e controle disciplinar;
+- ligas com imagem por URL, classificação, artilharia e controle disciplinar;
 - página pública opcional por liga, acessível sem login e pronta para compartilhamento;
+- página inicial pública com apresentação do produto e catálogo das ligas publicadas;
 - check-in pelo GPS do celular;
 - criação de gerenciadores pelo usuário Master;
 - miniaturas de locais com Google Maps;
@@ -384,7 +385,7 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 3. Crie uma equipe.
 4. Cadastre um local.
 5. Cadastre jogadores.
-6. Crie uma liga.
+6. Crie uma liga e, se desejar, informe a URL de uma imagem de capa. Uma liga existente pode ser atualizada com **Editar liga**.
 7. Agende uma partida.
 8. Abra a partida e adicione os gols como eventos da súmula; autor e assistência são opcionais.
 9. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
@@ -398,7 +399,25 @@ O autor do gol nunca pode ser selecionado também como autor da assistência. Em
 
 ### Página pública da liga
 
-Cada liga pode ser publicada ou desativada individualmente pelo gerenciador. A página pública utiliza o endereço:
+A página inicial pública do produto fica disponível em:
+
+```text
+/
+```
+
+Ela explica como o BABA MANAGER funciona, apresenta seus principais recursos e lista as ligas que foram publicadas. A autenticação é acessada pela navbar em:
+
+```text
+/login
+```
+
+Depois do login, o usuário é encaminhado para a área de gerenciamento:
+
+```text
+/painel
+```
+
+Cada liga pode ser publicada ou desativada individualmente pelo gerenciador. Sua imagem por URL é exibida na página inicial, na listagem pública e no cabeçalho da própria liga. A página pública utiliza o endereço:
 
 ```text
 /liga/ID_DA_LIGA

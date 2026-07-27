@@ -21,12 +21,12 @@ import { Avatar, Logo } from './UI';
 
 const navByRole = {
   master: [
-    { to: '/', label: 'Visão geral', icon: LayoutDashboard },
+    { to: '/painel', label: 'Visão geral', icon: LayoutDashboard },
     { to: '/gerenciadores', label: 'Gerenciadores', icon: UserCog },
     { to: '/atividades', label: 'Atividades', icon: Activity },
   ],
   manager: [
-    { to: '/', label: 'Visão geral', icon: LayoutDashboard },
+    { to: '/painel', label: 'Visão geral', icon: LayoutDashboard },
     { to: '/partidas', label: 'Partidas', icon: CalendarDays },
     { to: '/equipes', label: 'Equipes', icon: ShieldCheck },
     { to: '/jogadores', label: 'Jogadores', icon: UsersRound },
@@ -34,7 +34,7 @@ const navByRole = {
     { to: '/locais', label: 'Locais', icon: MapPinned },
   ],
   player: [
-    { to: '/', label: 'Início', icon: LayoutDashboard },
+    { to: '/painel', label: 'Início', icon: LayoutDashboard },
     { to: '/check-in', label: 'Check-in', icon: MapPinned },
     { to: '/partidas', label: 'Partidas', icon: CalendarDays },
     { to: '/ligas', label: 'Classificação', icon: Trophy },
@@ -57,7 +57,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const changeAccess = async (accessId: string) => {
     await switchAccess(accessId);
-    navigate('/');
+    navigate('/painel');
     setProfileOpen(false);
   };
 
@@ -86,7 +86,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === '/painel'}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) => isActive ? 'sidebar__link sidebar__link--active' : 'sidebar__link'}
               >
@@ -177,7 +177,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === '/painel'}
                 className={({ isActive }) => isActive ? 'active' : ''}
               >
                 <Icon size={20} /><span>{item.label}</span>

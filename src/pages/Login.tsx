@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   BarChart3,
   CheckCircle2,
   Globe2,
@@ -67,6 +68,7 @@ export function Login() {
       </section>
 
       <section className="login-panel">
+        <a className="login-back-home" href="/"><ArrowLeft size={17} /> Voltar para o site</a>
         <div className="login-panel__mobile-logo"><Logo /></div>
         <div className="login-card">
           <span className="login-card__icon"><ShieldCheck size={26} /></span>

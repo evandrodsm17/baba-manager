@@ -144,7 +144,7 @@ function PublicHeader({ back }: { back?: () => void }) {
           <button className="public-back" type="button" onClick={back}><ArrowLeft size={18} /> Todas as ligas</button>
         ) : <Logo />}
         <div className="public-header__brand">{back && <Logo />}</div>
-        <a className="public-admin-link" href="/">Área administrativa <ExternalLink size={15} /></a>
+        <a className="public-admin-link" href="/login">Entrar e gerenciar <ExternalLink size={15} /></a>
       </div>
     </header>
   );
@@ -175,7 +175,9 @@ function PublicLeagueListPage({
             {leagues.map((league) => (
               <article className="public-league-card" key={league.id}>
                 <div className="public-league-card__top">
-                  <span><Trophy size={22} /></span>
+                  {league.imageUrl
+                    ? <img src={league.imageUrl} alt={`Imagem da liga ${league.name}`} />
+                    : <span><Trophy size={22} /></span>}
                   <Badge tone={league.status === 'active' ? 'success' : 'neutral'} dot>
                     {league.status === 'active' ? 'Em andamento' : 'Encerrada'}
                   </Badge>
@@ -276,6 +278,7 @@ function PublicLeagueDetailPage({
       <PublicHeader back={onBack} />
       <main className="public-main">
         <section className="public-league-hero">
+          {league.imageUrl && <img className="public-league-hero__image" src={league.imageUrl} alt={`Imagem da liga ${league.name}`} />}
           <div className="public-league-hero__content">
             <span className="eyebrow"><Trophy size={15} /> TEMPORADA {league.season}</span>
             <small>{league.organizationName}</small>
@@ -480,7 +483,7 @@ function PublicFooter() {
     <footer className="public-footer">
       <Logo />
       <p>Futebol amador organizado, transparente e fácil de compartilhar.</p>
-      <a href="/">Gerencie sua liga no BABA MANAGER</a>
+      <a href="/login">Gerencie sua liga no BABA MANAGER</a>
     </footer>
   );
 }
