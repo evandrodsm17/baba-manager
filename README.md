@@ -14,7 +14,9 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - jogadores com foto, apelido, e-mail, posições e número da camisa;
 - locais com coordenadas e raio autorizado para check-in;
 - partidas agendadas, ao vivo e finalizadas;
-- súmula com gols, assistências e cartões;
+- súmula editável com gols, assistências, cartões e gol contra;
+- placar calculado automaticamente pelos eventos de gol;
+- finalização com bloqueio da súmula e reabertura controlada pelo gerenciador;
 - declaração de gols e assistências pelo jogador, com aprovação do gerenciador;
 - ligas com classificação, artilharia e controle disciplinar;
 - check-in pelo GPS do celular;
@@ -383,8 +385,14 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 5. Cadastre jogadores.
 6. Crie uma liga.
 7. Agende uma partida.
+8. Abra a partida e adicione os gols como eventos da súmula; autor e assistência são opcionais.
+9. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
+10. Edite ou remova eventos enquanto a partida estiver aberta e confira o placar calculado.
+11. Clique em **Finalizar partida** para bloquear a súmula. Para corrigir algo depois, use **Reabrir partida**.
 
 Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google.
+
+O autor do gol nunca pode ser selecionado também como autor da assistência. Em gols contra, o autor opcional pertence à equipe adversária da equipe beneficiada.
 
 #### Teste do Jogador
 
@@ -394,7 +402,7 @@ Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail qu
 4. Abra **Check-in**.
 5. Autorize o acesso à localização do navegador.
 6. Em uma partida finalizada da sua equipe, envie seus gols e assistências.
-7. Volte ao acesso **Gerenciador** para aprovar ou recusar a declaração.
+7. Volte ao acesso **Gerenciador** para aprovar ou recusar a declaração. Como uma aprovação altera a súmula oficial, reabra antes uma partida já finalizada.
 
 A geolocalização funciona em `localhost` durante o desenvolvimento e em páginas HTTPS, como as publicadas pela Vercel.
 

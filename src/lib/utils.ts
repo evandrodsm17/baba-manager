@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Match, Player } from '../types';
+import type { Match, MatchEvent, Player } from '../types';
 
 export function formatMatchDate(value: string) {
   const date = new Date(value);
@@ -48,6 +48,15 @@ export function getPlayerStats(players: Player[], matches: Match[]) {
       red: leagueEvents.filter((event) => event.type === 'red' && event.playerId === player.id).length,
     };
   });
+}
+
+export function scoreFromEvents(events: MatchEvent[], homeTeamId: string, awayTeamId: string) {
+  return events.reduce((score, event) => {
+    if (event.type !== 'goal') return score;
+    if (event.teamId === homeTeamId) score.homeScore += 1;
+    if (event.teamId === awayTeamId) score.awayScore += 1;
+    return score;
+  }, { homeScore: 0, awayScore: 0 });
 }
 
 export function haversineDistance(

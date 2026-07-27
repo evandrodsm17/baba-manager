@@ -4271,6 +4271,63 @@ img {
   }
 }
 
+.timeline__item {
+  grid-template-columns: 40px 35px minmax(0, 1fr) auto;
+}
+
+.timeline__item > div:nth-child(3) {
+  min-width: 0;
+}
+
+.timeline__item p,
+.timeline__item small {
+  overflow-wrap: anywhere;
+}
+
+.timeline__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timeline__actions .icon-button {
+  width: 34px;
+  height: 34px;
+  color: #b8c9bc;
+  border: 1px solid #304a38;
+  background: #13251a;
+}
+
+.timeline__actions .icon-button:hover {
+  color: var(--lime);
+  border-color: #5f7e3a;
+  background: #1c3020;
+}
+
+.timeline__actions .timeline__delete:hover {
+  color: #ff8c83;
+  border-color: #78433e;
+  background: #351b1b;
+}
+
+@media (max-width: 680px) {
+  .timeline__item {
+    grid-template-columns: 32px 30px minmax(0, 1fr) auto;
+    gap: 7px;
+    padding-block: 8px;
+  }
+
+  .timeline__actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .timeline__actions .icon-button {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 /* Match rosters and attendance */
 .match-rosters {
   grid-column: 1;

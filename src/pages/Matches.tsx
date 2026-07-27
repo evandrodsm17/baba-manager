@@ -4,11 +4,14 @@ import {
   Check,
   CheckCircle2,
   ClipboardCheck,
+  Edit3,
   MapPin,
   Plus,
   Radio,
+  RotateCcw,
   Send,
   ShieldAlert,
+  Trash2,
   Trophy,
   UsersRound,
   X,
@@ -17,7 +20,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { formatLongDate, playerDisplayName } from '../lib/utils';
+import { formatLongDate, playerDisplayName, scoreFromEvents } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
 import type { EventType, Match, MatchEvent, StatSubmission } from '../types';
 
@@ -173,10 +176,14 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const { data, currentUser, saveEntity, notify } = useApp();
   const navigate = useNavigate();
   const match = data.matches.find((item) => item.id === matchId);
-  const [resultOpen, setResultOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<MatchEvent | null>(null);
+  const [eventType, setEventType] = useState<EventType>('goal');
   const [eventTeam, setEventTeam] = useState('');
+  const [eventPlayer, setEventPlayer] = useState('');
+  const [assistPlayer, setAssistPlayer] = useState('');
+  const [ownGoal, setOwnGoal] = useState(false);
   const canManage = currentUser?.role === 'manager';
 
   if (!match) return <EmptyState title="Partida não encontrada" description="Este confronto não existe ou você não possui acesso." action={<Button onClick={() => navigate('/partidas')}>Voltar</Button>} />;
@@ -204,43 +211,86 @@ function MatchDetails({ matchId }: { matchId: string }) {
   ));
   if (!home || !away) return null;
 
-  const saveResult = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await saveEntity('matches', {
-      ...match,
-      status: 'finished',
-      homeScore: Number(form.get('homeScore')),
-      awayScore: Number(form.get('awayScore')),
-    }, 'registrou o placar');
-    notify('Resultado registrado e estatísticas atualizadas.');
-    setResultOpen(false);
+  const openEventForm = (item?: MatchEvent) => {
+    if (match.status === 'finished') {
+      notify('Reabra a partida antes de alterar a súmula.', 'error');
+      return;
+    }
+    setEditingEvent(item || null);
+    setEventType(item?.type || 'goal');
+    setEventTeam(item?.teamId || home.id);
+    setEventPlayer(item?.playerId || '');
+    setAssistPlayer(item?.assistPlayerId || '');
+    setOwnGoal(Boolean(item?.ownGoal));
+    setEventOpen(true);
   };
 
-  const addEvent = async (event: FormEvent<HTMLFormElement>) => {
+  const saveMatchEvent = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const type = String(form.get('type')) as EventType;
-    const teamId = String(form.get('teamId'));
-    const matchEvent: MatchEvent = {
-      id: createId('event'),
-      type,
-      teamId,
-      playerId: String(form.get('playerId')),
-      assistPlayerId: type === 'goal' ? String(form.get('assistPlayerId') || '') || undefined : undefined,
-      minute: Number(form.get('minute')),
-    };
-    const updated: Match = { ...match, events: [...match.events, matchEvent] };
-    if (type === 'goal') {
-      updated.homeScore = (match.homeScore || 0) + (teamId === match.homeTeamId ? 1 : 0);
-      updated.awayScore = (match.awayScore || 0) + (teamId === match.awayTeamId ? 1 : 0);
+    if (match.status === 'finished') {
+      notify('Reabra a partida antes de alterar a súmula.', 'error');
+      return;
     }
-    await saveEntity('matches', updated, `registrou ${type === 'goal' ? 'um gol' : type === 'yellow' ? 'um cartão amarelo' : 'um cartão vermelho'}`);
-    notify('Evento adicionado à súmula.');
+    const form = new FormData(event.currentTarget);
+    if (eventPlayer && assistPlayer && eventPlayer === assistPlayer) {
+      notify('O autor do gol não pode dar assistência a si mesmo.', 'error');
+      return;
+    }
+    if ((eventType === 'yellow' || eventType === 'red') && !eventPlayer) {
+      notify('Informe o jogador que recebeu o cartão.', 'error');
+      return;
+    }
+    const matchEvent: MatchEvent = {
+      id: editingEvent?.id || createId('event'),
+      type: eventType,
+      teamId: eventTeam,
+      minute: Number(form.get('minute')),
+      ...(eventPlayer ? { playerId: eventPlayer } : {}),
+      ...(eventType === 'goal' && !ownGoal && assistPlayer ? { assistPlayerId: assistPlayer } : {}),
+      ...(eventType === 'goal' && ownGoal ? { ownGoal: true } : {}),
+    };
+    const events = editingEvent
+      ? match.events.map((item) => item.id === editingEvent.id ? matchEvent : item)
+      : [...match.events, matchEvent];
+    const score = scoreFromEvents(events, match.homeTeamId, match.awayTeamId);
+    await saveEntity('matches', {
+      ...match,
+      ...score,
+      events,
+      status: match.status === 'scheduled' ? 'live' : match.status,
+    }, editingEvent ? 'editou um evento da súmula' : 'adicionou um evento à súmula');
+    notify(editingEvent ? 'Evento atualizado.' : 'Evento adicionado à súmula.');
     setEventOpen(false);
   };
 
-  const teamPlayers = data.players.filter((player) => player.teamId === eventTeam);
+  const removeMatchEvent = async (item: MatchEvent) => {
+    if (match.status === 'finished') {
+      notify('Reabra a partida antes de alterar a súmula.', 'error');
+      return;
+    }
+    if (!window.confirm('Remover este evento da súmula?')) return;
+    const events = match.events.filter((event) => event.id !== item.id);
+    const score = scoreFromEvents(events, match.homeTeamId, match.awayTeamId);
+    await saveEntity('matches', { ...match, ...score, events }, 'removeu um evento da súmula');
+    notify('Evento removido.');
+  };
+
+  const finalizeMatch = async () => {
+    const score = scoreFromEvents(match.events, match.homeTeamId, match.awayTeamId);
+    await saveEntity('matches', { ...match, ...score, status: 'finished' }, 'finalizou a partida');
+    notify('Partida finalizada. A súmula foi bloqueada para edição.');
+  };
+
+  const reopenMatch = async () => {
+    await saveEntity('matches', { ...match, status: 'live' }, 'reabriu a partida');
+    notify('Partida reaberta. A súmula pode ser editada novamente.');
+  };
+
+  const eventPlayerTeamId = eventType === 'goal' && ownGoal
+    ? eventTeam === home.id ? away.id : home.id
+    : eventTeam;
+  const eventPlayers = data.players.filter((player) => player.teamId === eventPlayerTeamId);
+  const assistPlayers = data.players.filter((player) => player.teamId === eventTeam && player.id !== eventPlayer);
 
   const submitStats = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -272,6 +322,10 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const reviewSubmission = async (submission: StatSubmission, approved: boolean) => {
     if (submission.status !== 'pending') return;
     if (approved) {
+      if (match.status === 'finished') {
+        notify('Reabra a partida antes de aprovar estatísticas que alteram a súmula.', 'error');
+        return;
+      }
       const claimedEvents: MatchEvent[] = [
         ...Array.from({ length: submission.goals }, (_, index) => ({
           id: `${submission.id}-goal-${index + 1}`,
@@ -289,7 +343,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
         })),
       ].filter((event) => !match.events.some((existingEvent) => existingEvent.id === event.id));
       if (claimedEvents.length) {
-        await saveEntity('matches', { ...match, events: [...match.events, ...claimedEvents] }, 'aprovou estatísticas enviadas por jogador');
+        const events = [...match.events, ...claimedEvents];
+        const score = scoreFromEvents(events, match.homeTeamId, match.awayTeamId);
+        await saveEntity('matches', { ...match, ...score, events }, 'aprovou estatísticas enviadas por jogador');
       }
     }
     await saveEntity('statSubmissions', {
@@ -306,7 +362,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
       <button className="back-link" type="button" onClick={() => navigate('/partidas')}><ArrowLeft size={17} /> Voltar para partidas</button>
       <div className="match-detail-hero">
         <div className="match-detail-hero__meta">
-          <Badge tone={match.status === 'finished' ? 'neutral' : 'lime'}>{match.status === 'finished' ? 'Partida finalizada' : 'Partida agendada'}</Badge>
+          <Badge tone={match.status === 'finished' ? 'neutral' : match.status === 'live' ? 'danger' : 'lime'}>
+            {match.status === 'finished' ? 'Partida finalizada' : match.status === 'live' ? 'Partida em andamento' : 'Partida agendada'}
+          </Badge>
           <span>{league?.name || 'Amistoso'}</span>
         </div>
         <div className="match-detail-score">
@@ -321,8 +379,14 @@ function MatchDetails({ matchId }: { matchId: string }) {
         </div>
         {canManage && (
           <div className="match-detail-hero__actions">
-            <Button variant="secondary" icon={Plus} onClick={() => { setEventTeam(home.id); setEventOpen(true); }}>Adicionar evento</Button>
-            <Button icon={CheckCircle2} onClick={() => setResultOpen(true)}>Registrar resultado</Button>
+            {match.status === 'finished' ? (
+              <Button icon={RotateCcw} onClick={reopenMatch}>Reabrir partida</Button>
+            ) : (
+              <>
+                <Button variant="secondary" icon={Plus} onClick={() => openEventForm()}>Adicionar evento</Button>
+                <Button icon={CheckCircle2} onClick={finalizeMatch}>Finalizar partida</Button>
+              </>
+            )}
           </div>
         )}
         {playerCanSubmit && (
@@ -352,14 +416,40 @@ function MatchDetails({ matchId }: { matchId: string }) {
             {match.events.length ? [...match.events].sort((a, b) => a.minute - b.minute).map((item) => {
               const player = data.players.find((entry) => entry.id === item.playerId);
               const assist = data.players.find((entry) => entry.id === item.assistPlayerId);
+              const creditedTeam = data.teams.find((team) => team.id === item.teamId);
+              const eventLabel = item.type === 'goal'
+                ? item.ownGoal ? 'Gol contra' : 'Gol'
+                : item.type === 'assist'
+                  ? 'Assistência'
+                  : item.type === 'yellow'
+                    ? 'Cartão amarelo'
+                    : 'Cartão vermelho';
+              const subject = player
+                ? playerDisplayName(player)
+                : item.type === 'goal'
+                  ? 'Autor não informado'
+                  : item.type === 'assist'
+                    ? 'Assistência sem autor'
+                    : 'Jogador não informado';
               return (
                 <div className="timeline__item" key={item.id}>
-                  <strong>{item.minute}'</strong>
+                  <strong>{item.minute ? `${item.minute}'` : '—'}</strong>
                   <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? '⚽' : ''}</span>
                   <div>
-                    <p><b>{item.type === 'goal' ? 'Gol' : item.type === 'assist' ? 'Assistência' : item.type === 'yellow' ? 'Cartão amarelo' : 'Cartão vermelho'}</b> · {playerDisplayName(player)}</p>
-                    {assist && <small>Assistência de {playerDisplayName(assist)}</small>}
+                    <p><b>{eventLabel}</b> · {subject}</p>
+                    {item.type === 'goal' && (
+                      <small>
+                        {assist ? `Assistência de ${playerDisplayName(assist)} · ` : ''}
+                        Gol para {creditedTeam?.shortName || 'equipe'}
+                      </small>
+                    )}
                   </div>
+                  {canManage && match.status !== 'finished' && (
+                    <div className="timeline__actions">
+                      <button className="icon-button" type="button" title="Editar evento" aria-label="Editar evento" onClick={() => openEventForm(item)}><Edit3 size={16} /></button>
+                      <button className="icon-button timeline__delete" type="button" title="Excluir evento" aria-label="Excluir evento" onClick={() => removeMatchEvent(item)}><Trash2 size={16} /></button>
+                    </div>
+                  )}
                 </div>
               );
             }) : <EmptyState title="Súmula vazia" description="Os eventos registrados durante a partida aparecerão aqui." />}
@@ -412,6 +502,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
               <div><h2>Estatísticas enviadas pelos jogadores</h2><p>Confira antes de adicionar à súmula oficial</p></div>
               <Badge tone="warning">{pendingSubmissions.length} pendente{pendingSubmissions.length > 1 ? 's' : ''}</Badge>
             </div>
+            {match.status === 'finished' && (
+              <div className="form-tip form-tip--warning"><ShieldAlert size={18} /><p><strong>Súmula bloqueada</strong><span>Reabra a partida para aprovar estatísticas. Recusar um envio continua permitido.</span></p></div>
+            )}
             <div className="stat-review-list">
               {pendingSubmissions.map((submission) => {
                 const player = data.players.find((item) => item.id === submission.playerId);
@@ -425,7 +518,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
                     </div>
                     <div className="stat-review-item__actions">
                       <Button variant="ghost" icon={X} onClick={() => reviewSubmission(submission, false)}>Recusar</Button>
-                      <Button icon={Check} onClick={() => reviewSubmission(submission, true)}>Aprovar</Button>
+                      <Button icon={Check} disabled={match.status === 'finished'} onClick={() => reviewSubmission(submission, true)}>Aprovar</Button>
                     </div>
                   </article>
                 );
@@ -444,29 +537,95 @@ function MatchDetails({ matchId }: { matchId: string }) {
         </aside>
       </div>
 
-      <Modal open={resultOpen} onClose={() => setResultOpen(false)} title="Registrar resultado" description="O placar final será usado na classificação da liga.">
-        <form className="form" onSubmit={saveResult}>
-          <div className="score-form">
-            <label><TeamMark {...home} size="md" /><strong>{home.shortName}</strong><input name="homeScore" type="number" min="0" required defaultValue={match.homeScore || 0} /></label>
-            <b>×</b>
-            <label><TeamMark {...away} size="md" /><strong>{away.shortName}</strong><input name="awayScore" type="number" min="0" required defaultValue={match.awayScore || 0} /></label>
-          </div>
-          <div className="form-tip"><Trophy size={18} /><p><strong>Estatísticas da liga</strong><span>{league ? `Este resultado conta para ${league.name}.` : 'Partidas amistosas não alteram a classificação.'}</span></p></div>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setResultOpen(false)}>Cancelar</Button><Button type="submit">Salvar resultado</Button></div>
-        </form>
-      </Modal>
-
-      <Modal open={eventOpen} onClose={() => setEventOpen(false)} title="Adicionar evento à súmula" description="Registre gols, assistências e cartões conforme aconteceram.">
-        <form className="form" onSubmit={addEvent}>
+      <Modal
+        open={eventOpen}
+        onClose={() => setEventOpen(false)}
+        title={editingEvent ? 'Editar evento da súmula' : 'Adicionar evento à súmula'}
+        description="O placar é calculado automaticamente a partir dos eventos de gol."
+      >
+        <form className="form" onSubmit={saveMatchEvent}>
           <div className="form-row form-row--3">
-            <label><span>Evento</span><select name="type"><option value="goal">Gol</option><option value="yellow">Cartão amarelo</option><option value="red">Cartão vermelho</option></select></label>
-            <label><span>Equipe</span><select name="teamId" value={eventTeam} onChange={(event) => setEventTeam(event.target.value)}><option value={home.id}>{home.name}</option><option value={away.id}>{away.name}</option></select></label>
-            <label><span>Minuto</span><input name="minute" type="number" min="0" max="150" required placeholder="35" /></label>
+            <label>
+              <span>Evento</span>
+              <select
+                name="type"
+                value={eventType}
+                onChange={(event) => {
+                  const nextType = event.target.value as EventType;
+                  setEventType(nextType);
+                  setEventPlayer('');
+                  setAssistPlayer('');
+                  if (nextType !== 'goal') setOwnGoal(false);
+                }}
+              >
+                <option value="goal">Gol</option>
+                <option value="assist">Assistência</option>
+                <option value="yellow">Cartão amarelo</option>
+                <option value="red">Cartão vermelho</option>
+              </select>
+            </label>
+            <label>
+              <span>{eventType === 'goal' ? 'Equipe beneficiada' : 'Equipe'}</span>
+              <select
+                name="teamId"
+                value={eventTeam}
+                onChange={(event) => {
+                  setEventTeam(event.target.value);
+                  setEventPlayer('');
+                  setAssistPlayer('');
+                }}
+              >
+                <option value={home.id}>{home.name}</option>
+                <option value={away.id}>{away.name}</option>
+              </select>
+            </label>
+            <label><span>Minuto</span><input name="minute" type="number" min="0" max="150" required placeholder="35" defaultValue={editingEvent?.minute} /></label>
           </div>
-          <label><span>Jogador</span><select name="playerId" required defaultValue=""><option value="">Selecione</option>{teamPlayers.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label>
-          <label><span>Assistência <small>(preencha apenas para gol)</small></span><select name="assistPlayerId" defaultValue=""><option value="">Sem assistência</option>{teamPlayers.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label>
+          {eventType === 'goal' && (
+            <label className="toggle-field">
+              <input
+                type="checkbox"
+                checked={ownGoal}
+                onChange={(event) => {
+                  setOwnGoal(event.target.checked);
+                  setEventPlayer('');
+                  setAssistPlayer('');
+                }}
+              />
+              <i />
+              <span><strong>Registrar como gol contra</strong><small>O ponto vai para a equipe beneficiada; o autor, se informado, será escolhido na equipe adversária.</small></span>
+            </label>
+          )}
+          <label>
+            <span>
+              {eventType === 'goal' && ownGoal ? 'Jogador que fez o gol contra' : eventType === 'goal' ? 'Autor do gol' : eventType === 'assist' ? 'Jogador' : 'Jogador que recebeu o cartão'}
+              {(eventType === 'goal' || eventType === 'assist') && <small> (opcional)</small>}
+            </span>
+            <select
+              name="playerId"
+              required={eventType === 'yellow' || eventType === 'red'}
+              value={eventPlayer}
+              onChange={(event) => {
+                setEventPlayer(event.target.value);
+                if (event.target.value === assistPlayer) setAssistPlayer('');
+              }}
+            >
+              <option value="">{eventType === 'yellow' || eventType === 'red' ? 'Selecione o jogador' : 'Não informar'}</option>
+              {eventPlayers.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+            </select>
+          </label>
+          {eventType === 'goal' && !ownGoal && (
+            <label>
+              <span>Assistência <small>(opcional)</small></span>
+              <select name="assistPlayerId" value={assistPlayer} onChange={(event) => setAssistPlayer(event.target.value)}>
+                <option value="">Sem assistência</option>
+                {assistPlayers.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+              </select>
+            </label>
+          )}
+          <div className="form-tip"><Trophy size={18} /><p><strong>Placar por eventos</strong><span>Todo gol soma um ponto à equipe beneficiada. Autor e assistência podem ficar sem identificação, mas nunca podem ser a mesma pessoa.</span></p></div>
           <div className="form-tip form-tip--warning"><ShieldAlert size={18} /><p><strong>Regra disciplinar</strong><span>Cartões em partidas de liga serão contabilizados para possíveis suspensões.</span></p></div>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setEventOpen(false)}>Cancelar</Button><Button type="submit">Adicionar à súmula</Button></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setEventOpen(false)}>Cancelar</Button><Button type="submit">{editingEvent ? 'Salvar alterações' : 'Adicionar à súmula'}</Button></div>
         </form>
       </Modal>
 

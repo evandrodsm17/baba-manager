@@ -89,10 +89,11 @@ export interface League {
 export interface MatchEvent {
   id: string;
   type: EventType;
-  playerId: string;
+  playerId?: string;
   assistPlayerId?: string;
   teamId: string;
   minute: number;
+  ownGoal?: boolean;
 }
 
 export interface Match {
