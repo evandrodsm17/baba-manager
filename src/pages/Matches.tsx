@@ -32,10 +32,15 @@ function MatchesList() {
   const [searchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [status, setStatus] = useState<'all' | Match['status']>('all');
+  const [homeTeamId, setHomeTeamId] = useState('');
+  const [awayTeamId, setAwayTeamId] = useState('');
+  const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
   const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const teams = data.teams.filter((team) => team.organizationId === orgId);
+  const venues = data.venues.filter((venue) => venue.organizationId === orgId);
+  const canSchedule = teams.length >= 2 && venues.length > 0;
   const matches = useMemo(() => data.matches
     .filter((match) => match.organizationId === orgId)
     .filter((match) => canManage || !activePlayer || match.homeTeamId === activePlayer.teamId || match.awayTeamId === activePlayer.teamId)
@@ -46,13 +51,26 @@ function MatchesList() {
     if (searchParams.get('nova') === '1' && canManage) setModalOpen(true);
   }, [searchParams, canManage]);
 
+  const openSchedule = () => {
+    setHomeTeamId('');
+    setAwayTeamId('');
+    setScheduleError('');
+    setModalOpen(true);
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const homeTeamId = String(form.get('homeTeamId'));
-    const awayTeamId = String(form.get('awayTeamId'));
+    if (teams.length < 2) {
+      setScheduleError('Cadastre pelo menos duas equipes para criar um confronto.');
+      return;
+    }
+    if (!venues.length) {
+      setScheduleError('Cadastre um local antes de agendar a partida.');
+      return;
+    }
     if (homeTeamId === awayTeamId) {
-      notify('Escolha duas equipes diferentes.', 'error');
+      setScheduleError('Mandante e visitante precisam ser equipes diferentes.');
       return;
     }
     const venue = data.venues.find((item) => item.id === form.get('venueId'));
@@ -79,8 +97,8 @@ function MatchesList() {
       <PageHeader
         eyebrow="CALENDÁRIO"
         title="Partidas"
-        description={canManage ? 'Agende confrontos, registre placares e todos os eventos do jogo.' : 'Acompanhe sua agenda e os resultados da competição.'}
-        action={canManage ? <Button icon={Plus} onClick={() => setModalOpen(true)}>Nova partida</Button> : undefined}
+        description={canManage ? 'Agende confrontos entre equipes diferentes, registre placares e todos os eventos do jogo.' : 'Acompanhe sua agenda e os resultados da competição.'}
+        action={canManage ? <Button icon={Plus} onClick={openSchedule}>Nova partida</Button> : undefined}
       />
       <div className="toolbar toolbar--tabs">
         <div className="segmented">
@@ -98,24 +116,43 @@ function MatchesList() {
           {matches.map((match) => <MatchCard key={match.id} match={match} teams={teams} venues={data.venues} />)}
         </div>
       ) : (
-        <EmptyState title="Nenhuma partida nesta lista" description="Agende um novo confronto ou altere o filtro." action={canManage ? <Button icon={Plus} onClick={() => setModalOpen(true)}>Agendar partida</Button> : undefined} />
+        <EmptyState title="Nenhuma partida nesta lista" description="Agende um novo confronto ou altere o filtro." action={canManage ? <Button icon={Plus} onClick={openSchedule}>Agendar partida</Button> : undefined} />
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Agendar partida" description="Defina o confronto, o campeonato e as regras de check-in." size="lg">
         <form className="form" onSubmit={submit}>
+          <div className={`form-tip ${!canSchedule || scheduleError ? 'form-tip--warning' : ''}`}>
+            <ShieldAlert size={18} />
+            <p>
+              <strong>
+                {teams.length < 2
+                  ? 'Falta cadastrar outra equipe'
+                  : !venues.length
+                    ? 'Falta cadastrar um local'
+                    : scheduleError ? 'Confronto inválido' : 'Regra do confronto'}
+              </strong>
+              <span>
+                {teams.length < 2
+                  ? `Você possui ${teams.length} equipe cadastrada. Uma partida exige duas equipes diferentes.`
+                  : !venues.length
+                    ? 'Toda partida precisa estar associada a um campo ou quadra.'
+                    : scheduleError || 'Uma equipe não pode enfrentar ela própria; escolha mandante e visitante diferentes.'}
+              </span>
+            </p>
+          </div>
           <div className="versus-form">
-            <label><span>Mandante</span><select name="homeTeamId" required defaultValue=""><option value="">Selecione a equipe</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+            <label><span>Mandante</span><select name="homeTeamId" required value={homeTeamId} onChange={(event) => { setHomeTeamId(event.target.value); if (event.target.value === awayTeamId) setAwayTeamId(''); setScheduleError(''); }}><option value="">Selecione a equipe</option>{teams.map((team) => <option key={team.id} value={team.id} disabled={team.id === awayTeamId}>{team.name}</option>)}</select></label>
             <b>VS</b>
-            <label><span>Visitante</span><select name="awayTeamId" required defaultValue=""><option value="">Selecione a equipe</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+            <label><span>Visitante</span><select name="awayTeamId" required value={awayTeamId} onChange={(event) => { setAwayTeamId(event.target.value); setScheduleError(''); }}><option value="">Selecione outra equipe</option>{teams.map((team) => <option key={team.id} value={team.id} disabled={team.id === homeTeamId}>{team.name}</option>)}</select></label>
           </div>
           <div className="form-row form-row--2">
             <label><span>Data e horário</span><input name="startsAt" type="datetime-local" required /></label>
-            <label><span>Local</span><select name="venueId" required defaultValue=""><option value="">Selecione o campo</option>{data.venues.filter((venue) => venue.organizationId === orgId).map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
+            <label><span>Local</span><select name="venueId" required defaultValue=""><option value="">Selecione o campo</option>{venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
           </div>
           <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>
           <label className="toggle-field"><input type="checkbox" name="requiresGeolocation" /><i /><span><strong>Exigir geolocalização no check-in</strong><small>O jogador deverá estar dentro do raio definido no local.</small></span></label>
           <label><span>Observações <small>(opcional)</small></span><textarea name="notes" rows={3} placeholder="Informações adicionais para os jogadores..." /></label>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={CalendarDays}>Agendar partida</Button></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={CalendarDays} disabled={!canSchedule}>Agendar partida</Button></div>
         </form>
       </Modal>
     </>
