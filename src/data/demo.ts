@@ -80,7 +80,7 @@ export const demoData: AppData = {
     { id: 'v3', organizationId: org, name: 'Campo do Parque', address: 'Parque da Cidade, Salvador - BA', latitude: -13.0047, longitude: -38.4937, checkinRadius: 300, requiresGeolocation: true },
   ],
   leagues: [
-    { id: 'l1', organizationId: org, name: 'Copa Resenha', season: '2026', teamIds: ['t1', 't2', 't3', 't4'], status: 'active', yellowCardLimit: 3, redCardSuspension: 1 },
+    { id: 'l1', organizationId: org, name: 'Copa Resenha', season: '2026', teamIds: ['t1', 't2', 't3', 't4'], status: 'active', yellowCardLimit: 3, redCardSuspension: 1, isPublic: true, publishedAt: new Date().toISOString() },
     { id: 'l2', organizationId: org, name: 'Torneio de Verão', season: '2026', teamIds: ['t1', 't2'], status: 'finished', yellowCardLimit: 2, redCardSuspension: 1 },
   ],
   matches: [

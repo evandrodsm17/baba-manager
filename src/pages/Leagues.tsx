@@ -1,46 +1,9 @@
-import { AlertTriangle, Medal, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import { AlertTriangle, Copy, ExternalLink, Globe2, Medal, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { getPlayerStats, playerDisplayName } from '../lib/utils';
-import type { League, Match } from '../types';
-
-interface Standing {
-  teamId: string;
-  played: number;
-  wins: number;
-  draws: number;
-  losses: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  points: number;
-}
-
-function getLeagueTeamIds(league: League, matches: Match[]) {
-  const scheduledTeams = matches
-    .filter((match) => match.leagueId === league.id)
-    .flatMap((match) => [match.homeTeamId, match.awayTeamId]);
-  return [...new Set([...league.teamIds, ...scheduledTeams])];
-}
-
-function calculateStandings(league: League, matches: Match[]): Standing[] {
-  const table = new Map<string, Standing>();
-  getLeagueTeamIds(league, matches).forEach((teamId) => table.set(teamId, { teamId, played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }));
-  matches.filter((match) => match.leagueId === league.id && match.status === 'finished').forEach((match) => {
-    const home = table.get(match.homeTeamId);
-    const away = table.get(match.awayTeamId);
-    if (!home || !away) return;
-    const homeScore = match.homeScore || 0;
-    const awayScore = match.awayScore || 0;
-    home.played++; away.played++;
-    home.goalsFor += homeScore; home.goalsAgainst += awayScore;
-    away.goalsFor += awayScore; away.goalsAgainst += homeScore;
-    if (homeScore > awayScore) { home.wins++; home.points += 3; away.losses++; }
-    else if (awayScore > homeScore) { away.wins++; away.points += 3; home.losses++; }
-    else { home.draws++; away.draws++; home.points++; away.points++; }
-  });
-  return [...table.values()].sort((a, b) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst) || b.goalsFor - a.goalsFor);
-}
+import { calculateStandings, getLeagueTeamIds, getPlayerStats, playerDisplayName } from '../lib/utils';
+import type { League } from '../types';
 
 export function Leagues() {
   const { data, currentUser, saveEntity, notify } = useApp();
@@ -49,6 +12,7 @@ export function Leagues() {
   const leagues = data.leagues.filter((league) => league.organizationId === orgId);
   const [selectedId, setSelectedId] = useState(leagues.find((league) => league.status === 'active')?.id || leagues[0]?.id);
   const [modalOpen, setModalOpen] = useState(false);
+  const [copying, setCopying] = useState(false);
   const selected = leagues.find((league) => league.id === selectedId);
   const leagueMatches = data.matches.filter((match) => match.leagueId === selected?.id);
   const leagueTeamIds = useMemo(
@@ -87,6 +51,32 @@ export function Leagues() {
     setModalOpen(false);
   };
 
+  const togglePublication = async () => {
+    if (!selected) return;
+    const isPublic = !selected.isPublic;
+    await saveEntity('leagues', {
+      ...selected,
+      isPublic,
+      ...(isPublic ? { publishedAt: selected.publishedAt || new Date().toISOString() } : {}),
+    }, isPublic ? 'publicou uma liga' : 'removeu uma liga da área pública');
+    notify(isPublic
+      ? 'Liga publicada. O link já pode ser compartilhado.'
+      : 'A página pública desta liga foi desativada.');
+  };
+
+  const copyPublicLink = async () => {
+    if (!selected) return;
+    setCopying(true);
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/liga/${selected.id}`);
+      notify('Link público copiado.');
+    } catch {
+      notify('Não foi possível copiar o link automaticamente.', 'error');
+    } finally {
+      setCopying(false);
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -113,6 +103,31 @@ export function Leagues() {
                 <div><span className="eyebrow"><Sparkles size={14} /> TEMPORADA {selected.season}</span><h2>{selected.name}</h2><p>{leagueTeamIds.length} equipes · {leagueMatches.filter((match) => match.status === 'finished').length} partidas realizadas</p></div>
                 <div className="league-banner__rules"><span><strong>{selected.yellowCardLimit}</strong><small>amarelos = suspensão</small></span><span><strong>{selected.redCardSuspension}</strong><small>jogo por vermelho</small></span></div>
               </div>
+
+              {(canManage || selected.isPublic) && (
+                <section className={`league-publication ${selected.isPublic ? 'league-publication--active' : ''}`}>
+                  <span><Globe2 size={20} /></span>
+                  <div>
+                    <strong>{selected.isPublic ? 'Página pública ativa' : 'Compartilhe esta liga'}</strong>
+                    <p>{selected.isPublic
+                      ? 'Classificação, partidas e rankings podem ser vistos sem login.'
+                      : 'Publique uma página externa segura para jogadores, amigos e torcedores.'}</p>
+                  </div>
+                  <div className="league-publication__actions">
+                    {selected.isPublic && (
+                      <>
+                        <Button variant="ghost" icon={Copy} disabled={copying} onClick={copyPublicLink}>{copying ? 'Copiando...' : 'Copiar link'}</Button>
+                        <Button variant="secondary" icon={ExternalLink} onClick={() => window.open(`/liga/${selected.id}`, '_blank', 'noopener,noreferrer')}>Abrir página</Button>
+                      </>
+                    )}
+                    {canManage && (
+                      <Button variant={selected.isPublic ? 'ghost' : 'primary'} icon={Globe2} onClick={togglePublication}>
+                        {selected.isPublic ? 'Desativar publicação' : 'Publicar liga'}
+                      </Button>
+                    )}
+                  </div>
+                </section>
+              )}
 
               <div className="league-grid">
                 <section className="panel league-grid__table">

@@ -19,6 +19,7 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - finalização com bloqueio da súmula e reabertura controlada pelo gerenciador;
 - declaração de gols e assistências pelo jogador, com aprovação do gerenciador;
 - ligas com classificação, artilharia e controle disciplinar;
+- página pública opcional por liga, acessível sem login e pronta para compartilhamento;
 - check-in pelo GPS do celular;
 - criação de gerenciadores pelo usuário Master;
 - miniaturas de locais com Google Maps;
@@ -389,10 +390,27 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 9. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
 10. Edite ou remova eventos enquanto a partida estiver aberta e confira o placar calculado.
 11. Clique em **Finalizar partida** para bloquear a súmula. Para corrigir algo depois, use **Reabrir partida**.
+12. Em **Ligas**, use **Publicar liga** para gerar a página externa e copie o link exibido.
 
 Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google.
 
 O autor do gol nunca pode ser selecionado também como autor da assistência. Em gols contra, o autor opcional pertence à equipe adversária da equipe beneficiada. O gol contra altera o placar, mas não entra na artilharia do jogador.
+
+### Página pública da liga
+
+Cada liga pode ser publicada ou desativada individualmente pelo gerenciador. A página pública utiliza o endereço:
+
+```text
+/liga/ID_DA_LIGA
+```
+
+A listagem geral fica disponível em:
+
+```text
+/ligas-publicas
+```
+
+Ela apresenta classificação, jogos agendados e finalizados, placares, eventos da súmula, artilharia, ranking de assistências, cartões, equipes e elencos. A publicação utiliza uma cópia sanitizada: e-mails, check-ins, coordenadas e dados administrativos não são expostos.
 
 #### Teste do Jogador
 
@@ -422,6 +440,7 @@ O sistema cria e utiliza as seguintes coleções:
 | `matches` | Partidas, placares e súmulas |
 | `checkins` | Presenças validadas |
 | `statSubmissions` | Gols e assistências declarados pelos jogadores e seu status de aprovação |
+| `publicLeagues` | Cópias sanitizadas das ligas publicadas e suas partidas |
 | `auditLogs` | Atividades administrativas |
 
 ## Publicação na Vercel

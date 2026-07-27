@@ -1,6 +1,17 @@
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Match, MatchEvent, Player } from '../types';
+import type { League, Match, MatchEvent, Player } from '../types';
+
+export interface Standing {
+  teamId: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+}
 
 export function formatMatchDate(value: string) {
   const date = new Date(value);
@@ -52,6 +63,61 @@ export function getPlayerStats(players: Player[], matches: Match[]) {
       red: leagueEvents.filter((event) => event.type === 'red' && event.playerId === player.id).length,
     };
   });
+}
+
+export function getLeagueTeamIds(league: League, matches: Match[]) {
+  const scheduledTeams = matches
+    .filter((match) => match.leagueId === league.id)
+    .flatMap((match) => [match.homeTeamId, match.awayTeamId]);
+  return [...new Set([...league.teamIds, ...scheduledTeams])];
+}
+
+export function calculateStandings(league: League, matches: Match[]): Standing[] {
+  const table = new Map<string, Standing>();
+  getLeagueTeamIds(league, matches).forEach((teamId) => table.set(teamId, {
+    teamId,
+    played: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+    goalsFor: 0,
+    goalsAgainst: 0,
+    points: 0,
+  }));
+  matches
+    .filter((match) => match.leagueId === league.id && match.status === 'finished')
+    .forEach((match) => {
+      const home = table.get(match.homeTeamId);
+      const away = table.get(match.awayTeamId);
+      if (!home || !away) return;
+      const homeScore = match.homeScore || 0;
+      const awayScore = match.awayScore || 0;
+      home.played += 1;
+      away.played += 1;
+      home.goalsFor += homeScore;
+      home.goalsAgainst += awayScore;
+      away.goalsFor += awayScore;
+      away.goalsAgainst += homeScore;
+      if (homeScore > awayScore) {
+        home.wins += 1;
+        home.points += 3;
+        away.losses += 1;
+      } else if (awayScore > homeScore) {
+        away.wins += 1;
+        away.points += 3;
+        home.losses += 1;
+      } else {
+        home.draws += 1;
+        away.draws += 1;
+        home.points += 1;
+        away.points += 1;
+      }
+    });
+  return [...table.values()].sort((a, b) => (
+    b.points - a.points
+    || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
+    || b.goalsFor - a.goalsFor
+  ));
 }
 
 export function scoreFromEvents(events: MatchEvent[], homeTeamId: string, awayTeamId: string) {

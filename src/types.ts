@@ -84,6 +84,8 @@ export interface League {
   status: 'active' | 'finished' | 'draft';
   yellowCardLimit: number;
   redCardSuspension: number;
+  isPublic?: boolean;
+  publishedAt?: string;
 }
 
 export interface MatchEvent {
@@ -110,6 +112,32 @@ export interface Match {
   requiresGeolocation: boolean;
   events: MatchEvent[];
   notes?: string;
+}
+
+export interface PublicMatch extends Match {
+  venueName?: string;
+  venueAddress?: string;
+}
+
+export interface PublicLeagueSnapshot {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  name: string;
+  season: string;
+  teamIds: string[];
+  status: League['status'];
+  yellowCardLimit: number;
+  redCardSuspension: number;
+  isPublic: boolean;
+  publishedAt: string;
+  updatedAt: string;
+  teamCount: number;
+  playerCount: number;
+  matchCount: number;
+  finishedMatchCount: number;
+  teams: Team[];
+  players: Player[];
 }
 
 export interface Checkin {

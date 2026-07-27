@@ -262,6 +262,39 @@ service cloud.firestore {
       allow delete: if isMaster();
     }
 
+    match /publicLeagues/{leagueId} {
+      allow read: if resource.data.isPublic == true
+        || isMaster()
+        || sameOrganization(resource.data);
+      allow create: if managerCanWrite(request.resource.data)
+        && request.resource.data.id == leagueId
+        && request.resource.data.isPublic == true;
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+
+      match /matches/{matchId} {
+        function publicLeague() {
+          return get(/databases/$(database)/documents/publicLeagues/$(leagueId));
+        }
+
+        allow read: if (
+            publicLeague().data.isPublic == true
+          )
+          || isMaster()
+          || sameOrganization(resource.data);
+        allow create: if managerCanWrite(request.resource.data)
+          && request.resource.data.id == matchId
+          && request.resource.data.leagueId == leagueId;
+        allow update: if managerCanWrite(request.resource.data)
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.leagueId == leagueId
+          && request.resource.data.organizationId == resource.data.organizationId;
+        allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+      }
+    }
+
     match /auditLogs/{logId} {
       allow read: if isMaster() || (isManager() && sameOrganization(resource.data));
       allow create: if isMaster()

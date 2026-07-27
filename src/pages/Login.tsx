@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CheckCircle2,
+  Globe2,
   MapPin,
   ShieldCheck,
   Sparkles,
@@ -81,6 +82,7 @@ export function Login() {
               <span>O modo demo está pronto. Para o login real, adicione as chaves do Firebase no arquivo <b>.env</b>.</span>
             </div>
           )}
+          <a className="login-public-link" href="/ligas-publicas"><Globe2 size={18} /> Ver ligas públicas sem entrar</a>
           <div className="login-divider"><span>ou explore a demonstração</span></div>
           {!demoOpen ? (
             <Button variant="secondary" onClick={() => setDemoOpen(true)}>Acessar modo demonstração</Button>

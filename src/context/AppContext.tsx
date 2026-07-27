@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -20,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { demoData, demoUsers } from '../data/demo';
 import { activateUserAccess, db, isFirebaseConfigured, resolveUserProfile, signInWithGoogle, signOutUser, watchAuth } from '../lib/firebase';
+import { syncPublicLeagueSnapshot } from '../lib/publicLeague';
 import type { AppData, AuditLog, UserProfile, UserRole } from '../types';
 
 type DataKey = keyof AppData;
@@ -90,6 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
   const [isDemo, setIsDemo] = useState(!isFirebaseConfigured);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const dataRef = useRef(data);
 
   const notify = useCallback((message: string, tone: Toast['tone'] = 'success') => {
     const id = crypto.randomUUID();
@@ -171,6 +174,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isDemo) localStorage.setItem(storageKey, JSON.stringify(data));
   }, [data, isDemo]);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const loginGoogle = useCallback(async () => {
     setAuthLoading(true);
@@ -258,19 +265,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     entity: DataEntity<K>,
     auditMessage?: string,
   ) => {
-    setData((current) => {
-      const list = current[key] as Array<{ id: string }>;
-      const next = list.some((item) => item.id === entity.id)
-        ? list.map((item) => item.id === entity.id ? entity : item)
-        : [entity, ...list];
-      return { ...current, [key]: next };
-    });
+    const currentData = dataRef.current;
+    const list = currentData[key] as Array<{ id: string }>;
+    const next = list.some((item) => item.id === entity.id)
+      ? list.map((item) => item.id === entity.id ? entity : item)
+      : [entity, ...list];
+    const nextData = { ...currentData, [key]: next } as AppData;
+    dataRef.current = nextData;
+    setData(nextData);
 
     if (db && !isDemo) {
       await setDoc(
         doc(db, key, entity.id),
         withoutUndefined(entity) as Record<string, unknown>,
       );
+      if (currentUser?.role === 'manager' && ['leagues', 'matches', 'teams', 'players', 'venues', 'organizations'].includes(key)) {
+        const changedEntity = entity as { id: string; organizationId?: string; leagueId?: string };
+        const affectedLeagueIds = key === 'leagues'
+          ? [changedEntity.id]
+          : key === 'matches' && changedEntity.leagueId
+            ? [changedEntity.leagueId]
+            : nextData.leagues
+              .filter((league) => (
+                league.isPublic
+                && league.organizationId === (changedEntity.organizationId || currentUser.organizationId)
+              ))
+              .map((league) => league.id);
+        try {
+          await Promise.all([...new Set(affectedLeagueIds)].map((leagueId) => (
+            syncPublicLeagueSnapshot(db!, nextData, leagueId)
+          )));
+        } catch (error) {
+          console.error('Falha ao atualizar a página pública da liga:', error);
+          notify('Os dados foram salvos, mas a página pública não pôde ser atualizada.', 'error');
+        }
+      }
     }
 
     if (auditMessage && currentUser) {
@@ -294,16 +323,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, [currentUser, isDemo]);
+  }, [currentUser, isDemo, notify]);
 
   const removeEntity = useCallback(async (key: DataKey, id: string, auditMessage?: string) => {
-    setData((current) => ({
-      ...current,
-      [key]: (current[key] as Array<{ id: string }>).filter((item) => item.id !== id),
-    }));
+    const currentData = dataRef.current;
+    const removed = (currentData[key] as Array<{ id: string; organizationId?: string; leagueId?: string }>)
+      .find((item) => item.id === id);
+    const nextData = {
+      ...currentData,
+      [key]: (currentData[key] as Array<{ id: string }>).filter((item) => item.id !== id),
+    } as AppData;
+    dataRef.current = nextData;
+    setData(nextData);
     if (db && !isDemo) await deleteDoc(doc(db, key, id));
+    if (db && !isDemo && currentUser?.role === 'manager' && removed) {
+      if (key === 'leagues') {
+        try {
+          await deleteDoc(doc(db, 'publicLeagues', id));
+        } catch (error) {
+          console.error('Falha ao remover a página pública da liga:', error);
+        }
+      }
+      const affectedLeagueIds = key === 'leagues'
+        ? []
+        : key === 'matches' && removed.leagueId
+          ? [removed.leagueId]
+          : nextData.leagues
+            .filter((league) => league.isPublic && league.organizationId === removed.organizationId)
+            .map((league) => league.id);
+      try {
+        await Promise.all([...new Set(affectedLeagueIds)].map((leagueId) => (
+          syncPublicLeagueSnapshot(db!, nextData, leagueId)
+        )));
+      } catch (error) {
+        console.error('Falha ao atualizar a página pública da liga:', error);
+        notify('O item foi removido, mas a página pública não pôde ser atualizada.', 'error');
+      }
+    }
     if (auditMessage) notify(auditMessage);
-  }, [isDemo, notify]);
+  }, [currentUser, isDemo, notify]);
 
   const value = useMemo<AppContextValue>(() => ({
     data,
