@@ -38,7 +38,7 @@ export function Login() {
     <div className="login-page">
       <section className="login-hero">
         <div className="login-hero__grid" />
-        <div className="login-hero__top"><Logo /></div>
+        <div className="login-hero__top" style={{ marginTop: '50px' }}><Logo /></div>
         <div className="login-hero__content">
           <span className="login-hero__eyebrow"><Sparkles size={15} /> A resenha ficou profissional</span>
           <h1>Seu futebol.<br /><em>Bem organizado.</em></h1>
@@ -55,11 +55,11 @@ export function Login() {
             <small>AMANHÃ · 19:30</small>
           </div>
           <div className="login-score-card__teams">
-            <div><i className="mini-shield mini-shield--lime">TRO</i><strong>Trovão FC</strong></div>
+            <div><i className="mini-shield mini-shield--lime">BRA</i><strong>Brasil Favela FC</strong></div>
             <span><small>COPA RESENHA</small><b>VS</b></span>
-            <div><i className="mini-shield mini-shield--orange">ATV</i><strong>Atlético</strong></div>
+            <div><i className="mini-shield mini-shield--orange">2IR</i><strong>EC 2 Irmãos</strong></div>
           </div>
-          <div className="login-score-card__foot"><MapPin size={14} /> Arena Pituaçu</div>
+          <div className="login-score-card__foot"><MapPin size={12} /> Arena Pituaçu</div>
         </div>
         <div className="login-hero__footer">
           <span>© 2026 BABA MANAGER</span>

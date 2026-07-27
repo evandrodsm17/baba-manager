@@ -483,7 +483,8 @@ function PublicFooter() {
     <footer className="public-footer">
       <Logo />
       <p>Futebol amador organizado, transparente e fácil de compartilhar.</p>
-      <a href="/login">Gerencie sua liga no BABA MANAGER</a>
+      <a href="/login">Login</a>
+      <a href="/">Página Inicial</a>
     </footer>
   );
 }

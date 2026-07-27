@@ -3246,6 +3246,7 @@ img {
   color: #a9bbb0;
   font-size: 12px;
   font-weight: 700;
+  text-decoration: none;
 }
 
 .public-admin-link {
@@ -3337,18 +3338,18 @@ img {
 }
 
 .public-league-card__top > span {
-  width: 44px;
+  width: 128px;
   height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 6px;
   color: #c6fa58;
   background: #223d21;
 }
 
 .public-league-card > small {
   color: #8fa096;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .public-league-card h2 {
@@ -3360,7 +3361,7 @@ img {
 .public-league-card > p {
   margin-top: 3px;
   color: #a4b6aa;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .public-league-card__metrics {
@@ -3391,7 +3392,7 @@ img {
 
 .public-league-card__metrics small {
   color: #87998d;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .public-league-card > .button {
@@ -3836,13 +3837,14 @@ img {
 
 .public-footer p {
   color: #8fa095;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .public-footer a {
   color: #b9e966;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
+  text-decoration: none;
 }
 
 .public-loading {
@@ -5914,13 +5916,14 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #9caf9f;
+  color: #000;
   font-size: 12px;
   font-weight: 700;
-}
-
-.login-back-home:hover {
-  color: #ccf67a;
+  text-decoration: none;
+  cursor: pointer;
+  background-color: #adf02e;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .league-banner__image {
