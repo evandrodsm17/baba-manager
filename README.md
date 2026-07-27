@@ -10,7 +10,7 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - acessos acumuláveis de Master, Gerenciador e Jogador na mesma conta Google;
 - troca de contexto entre organizações e times pelo menu do perfil;
 - organizações isoladas por `organizationId`;
-- equipes com nome, sigla, cor e escudo por URL;
+- equipes com nome, sigla, cor, escudo por URL e elenco listado no card;
 - jogadores com foto, apelido, e-mail, posições e número da camisa;
 - locais com coordenadas e raio autorizado para check-in;
 - partidas agendadas, ao vivo e finalizadas;
@@ -392,7 +392,7 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 
 Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google.
 
-O autor do gol nunca pode ser selecionado também como autor da assistência. Em gols contra, o autor opcional pertence à equipe adversária da equipe beneficiada.
+O autor do gol nunca pode ser selecionado também como autor da assistência. Em gols contra, o autor opcional pertence à equipe adversária da equipe beneficiada. O gol contra altera o placar, mas não entra na artilharia do jogador.
 
 #### Teste do Jogador
 

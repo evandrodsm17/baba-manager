@@ -39,7 +39,11 @@ export function getPlayerStats(players: Player[], matches: Match[]) {
       .flatMap((match) => match.events);
     return {
       ...player,
-      goals: leagueEvents.filter((event) => event.type === 'goal' && event.playerId === player.id).length,
+      goals: leagueEvents.filter((event) => (
+        event.type === 'goal'
+        && !event.ownGoal
+        && event.playerId === player.id
+      )).length,
       assists: leagueEvents.filter((event) => (
         (event.type === 'goal' && event.assistPlayerId === player.id)
         || (event.type === 'assist' && event.playerId === player.id)

@@ -1,6 +1,6 @@
 import { Edit3, MoreHorizontal, Plus, Search, Shirt, UsersRound } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
+import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import type { Team } from '../types';
 
@@ -56,7 +56,9 @@ export function Teams() {
       {teams.length ? (
         <div className="team-grid">
           {teams.map((team) => {
-            const teamPlayers = data.players.filter((player) => player.teamId === team.id);
+            const teamPlayers = data.players
+              .filter((player) => player.teamId === team.id)
+              .sort((a, b) => (a.shirtNumber || 999) - (b.shirtNumber || 999) || a.name.localeCompare(b.name));
             const suspended = teamPlayers.filter((player) => player.status === 'suspended').length;
             return (
               <article className="team-card" key={team.id}>
@@ -69,6 +71,23 @@ export function Teams() {
                   <div><UsersRound size={17} /><span><strong>{teamPlayers.length}</strong> jogadores</span></div>
                   <div><Shirt size={17} /><span><strong>{teamPlayers.filter((player) => player.shirtNumber).length}</strong> numerados</span></div>
                 </div>
+                {teamPlayers.length > 0 && (
+                  <div className="team-card__roster">
+                    <div className="team-card__roster-title"><strong>Elenco</strong><span>{teamPlayers.length}</span></div>
+                    <div className="team-card__players">
+                      {teamPlayers.map((player) => (
+                        <div className={`team-card__player ${player.status === 'suspended' ? 'team-card__player--suspended' : ''}`} key={player.id}>
+                          <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team.color} />
+                          <div>
+                            <strong>{player.name}</strong>
+                            <small>{player.nickname ? `${player.nickname} · ` : ''}{player.positions.join(', ')}</small>
+                          </div>
+                          <span>{player.shirtNumber ? `#${player.shirtNumber}` : '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="team-card__footer">
                   {suspended ? <Badge tone="danger" dot>{suspended} suspenso{suspended > 1 ? 's' : ''}</Badge> : <Badge tone="success" dot>Elenco regular</Badge>}
                   <button type="button" onClick={() => openForm(team)}><Edit3 size={15} /> Editar equipe</button>
