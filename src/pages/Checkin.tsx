@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Badge, Button, EmptyState, PageHeader, SuccessSeal } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { buildDrawLineup, formatLongDate, haversineDistance, isDrawMatch, matchIncludesPlayer } from '../lib/utils';
+import { buildDrawLineup, formatLongDate, getMatchTeams, haversineDistance, isDrawMatch, matchIncludesPlayer } from '../lib/utils';
 import type { Checkin } from '../types';
 
 type CheckinState = 'idle' | 'locating' | 'success' | 'outside' | 'error';
@@ -21,6 +21,7 @@ export function CheckinPage() {
   const drawLineup = nextMatch && isDrawMatch(nextMatch)
     ? buildDrawLineup(nextMatch, data.players, data.checkins)
     : null;
+  const drawTeams = nextMatch && drawLineup ? getMatchTeams(nextMatch, data.teams) : null;
 
   const persistCheckin = async (latitude?: number, longitude?: number, measuredDistance?: number) => {
     if (!nextMatch || !player) return;
@@ -88,9 +89,9 @@ export function CheckinPage() {
 
   const successful = state === 'success' || Boolean(existing);
   const drawTeamName = player && drawLineup?.homePlayerIds.includes(player.id)
-    ? 'Time Verde'
+    ? drawTeams?.[0]?.name
     : player && drawLineup?.awayPlayerIds.includes(player.id)
-      ? 'Time Preto'
+      ? drawTeams?.[1]?.name
       : undefined;
   const waitingForDraw = Boolean(player && drawLineup?.waitingPlayerIds.includes(player.id));
   const checkinPosition = player ? drawLineup?.checkinPositionByPlayerId.get(player.id) : undefined;

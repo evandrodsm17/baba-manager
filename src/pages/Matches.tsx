@@ -355,6 +355,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const waitingPlayers = data.players
     .filter((player) => effectiveWaitingPlayerIds.includes(player.id))
     .sort((a, b) => effectiveWaitingPlayerIds.indexOf(a.id) - effectiveWaitingPlayerIds.indexOf(b.id));
+  const pendingCheckinPlayers = data.players
+    .filter((player) => drawLineup?.pendingCheckinPlayerIds.includes(player.id))
+    .sort((a, b) => playerDisplayName(a).localeCompare(playerDisplayName(b), 'pt-BR'));
   const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const playerCanSubmit = currentUser?.role === 'player'
     && match.status === 'finished'
@@ -739,7 +742,44 @@ function MatchDetails({ matchId }: { matchId: string }) {
                   })}
                 </div>
               ) : <p>Nenhum jogador confirmado está fora das equipes.</p>}
-              {(drawLineup?.pendingCheckinPlayerIds.length || 0) > 0 && <small className="draw-waiting-list__pending">{drawLineup?.pendingCheckinPlayerIds.length} selecionado{drawLineup?.pendingCheckinPlayerIds.length === 1 ? '' : 's'} ainda não fizeram check-in.</small>}
+            </div>
+          )}
+          {isDrawMatch(match) && pendingCheckinPlayers.length > 0 && (
+            <div className="draw-waiting-list draw-waiting-list--pending">
+              <header>
+                <div>
+                  <strong>{match.status === 'finished' ? 'Selecionados sem check-in' : 'Aguardando check-in'}</strong>
+                  <small>
+                    {match.status === 'finished'
+                      ? 'Jogadores esperados que não confirmaram presença nesta partida.'
+                      : 'Jogadores selecionados para esta partida que ainda precisam confirmar presença.'}
+                  </small>
+                </div>
+                <Badge tone="warning">{pendingCheckinPlayers.length} {match.status === 'finished' ? 'ausente' : 'pendente'}{pendingCheckinPlayers.length === 1 ? '' : 's'}</Badge>
+              </header>
+              <div>
+                {pendingCheckinPlayers.map((player) => {
+                  const team = data.teams.find((item) => item.id === player.teamId);
+                  const unvalidatedCheckin = data.checkins.find((item) => (
+                    item.matchId === match.id && item.playerId === player.id && !item.validated
+                  ));
+                  return (
+                    <article key={player.id}>
+                      <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
+                      <span>
+                        <strong>{playerDisplayName(player)}</strong>
+                        <small>
+                          {player.membershipType === 'subscriber' ? 'Mensalista' : player.membershipType === 'guest' ? 'Convidado' : 'Sem classificação'}
+                          {' · '}{player.positions.join(', ')}{team ? ` · ${team.shortName}` : ''}
+                        </small>
+                      </span>
+                      <Badge tone={unvalidatedCheckin ? 'warning' : 'neutral'} dot>
+                        {unvalidatedCheckin ? 'Não validado' : 'Check-in não realizado'}
+                      </Badge>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>

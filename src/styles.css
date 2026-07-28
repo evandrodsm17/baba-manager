@@ -7395,14 +7395,13 @@ img {
 
 .draw-waiting-list > header strong {
   color: #e7f2e9;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .draw-waiting-list > header small,
-.draw-waiting-list > p,
-.draw-waiting-list__pending {
+.draw-waiting-list > p {
   color: #8fa198;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -7440,17 +7439,33 @@ img {
 
 .draw-waiting-list article strong {
   color: #e4efe7;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .draw-waiting-list article small {
   color: #8fa198;
-  font-size: 10px;
+  font-size: 12px;
 }
 
-.draw-waiting-list__pending {
-  margin-top: 9px;
-  display: block;
+.draw-waiting-list--pending {
+  padding: 14px;
+  border: 1px solid #584a25;
+  border-radius: 12px;
+  background: #1c1a0f;
+}
+
+.draw-waiting-list--pending > header {
+  margin-bottom: 11px;
+}
+
+.draw-waiting-list--pending article {
+  border-color: #493f24;
+  background: #17180f;
+}
+
+.draw-waiting-list--pending article .badge {
+  max-width: none;
+  white-space: nowrap;
 }
 
 @media (max-width: 620px) {
@@ -7477,6 +7492,16 @@ img {
 
   .draw-capacity-field > label {
     justify-content: space-between;
+  }
+
+  .draw-waiting-list article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .draw-waiting-list article .badge {
+    width: fit-content;
+    margin-left: 45px;
+    grid-column: 1 / -1;
   }
 }
 
