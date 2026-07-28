@@ -2110,7 +2110,7 @@ img {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #f0f3ed;
+  background: #f0f3ed00;
   font-size: 12px;
 }
 

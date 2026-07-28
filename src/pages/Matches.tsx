@@ -15,6 +15,7 @@ import {
   Trash2,
   Trophy,
   UsersRound,
+  Volleyball,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -518,7 +519,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
               return (
                 <div className="timeline__item" key={item.id}>
                   <strong>{item.minute ? `${item.minute}'` : '—'}</strong>
-                  <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? '⚽' : ''}</span>
+                  <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? <Volleyball size={20} color="white" /> : ''}</span> 
                   <div>
                     <p><b>{eventLabel}</b> · {subject}</p>
                     {item.type === 'goal' && (

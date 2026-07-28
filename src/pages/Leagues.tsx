@@ -1,4 +1,4 @@
-import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Medal, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Medal, Plus, ShieldCheck, Sparkles, Trophy, Volleyball } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
@@ -182,7 +182,7 @@ export function Leagues() {
                 </section>
 
                 <section className="panel">
-                  <div className="section-header"><div><h2>Artilharia</h2><p>Gols nesta competição</p></div><Medal size={20} /></div>
+                  <div className="section-header"><div><h2>Artilharia</h2><p>Gols nesta competição</p></div><Volleyball size={20} /></div>
                   <div className="scorers">
                     {scorers.length ? scorers.map((player, index) => {
                       const team = data.teams.find((item) => item.id === player.teamId);

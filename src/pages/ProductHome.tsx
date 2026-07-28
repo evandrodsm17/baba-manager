@@ -14,6 +14,8 @@ import {
   Zap,
   HelpCircle,
   Box,
+  Volleyball,
+  RectangleVertical,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge, Button, Logo } from '../components/UI';
@@ -160,8 +162,8 @@ export function ProductHome() {
                 <span><ClipboardCheck size={25} /></span>
                 <div><small>SÚMULA DIGITAL</small><h3>O placar nasce dos eventos.</h3><p>Gols, assistências opcionais, gol contra, cartões, edição controlada e bloqueio ao finalizar.</p></div>
                 <div className="product-event-preview">
-                  <span><b>12'</b><i>⚽</i><strong>Gol · Cadu</strong><small>Assistência de Luquinhas</small></span>
-                  <span><b>37'</b><i>▰</i><strong>Cartão amarelo</strong><small>Controle disciplinar</small></span>
+                  <span><b>12'</b><Volleyball size={20} /><strong>Gol · Cadu</strong><small>Assistência de Luquinhas</small></span>
+                  <span><b>37'</b><RectangleVertical size={20} color='yellow' /><strong>Cartão amarelo</strong><small>Controle disciplinar</small></span>
                 </div>
               </article>
               <article className="product-feature">
