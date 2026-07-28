@@ -16,6 +16,7 @@ import {
   Footprints,
 } from 'lucide-react';
 import { PiSoccerBallFill } from "react-icons/pi";
+import { TbRectangleVerticalFilled } from "react-icons/tb";
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Avatar, Badge, Button, EmptyState, Logo, TeamMark } from '../components/UI';
 import { useApp } from '../context/AppContext';
@@ -467,7 +468,7 @@ function MatchEvents({
         return (
           <div className="public-event" key={event.id}>
             <strong>{event.minute ? `${event.minute}'` : '—'}</strong>
-            <span className={`event-icon event-icon--${event.type}`}>{event.type === 'goal' ? <PiSoccerBallFill size={20} color='white' /> : event.type === 'assist' ? <Trophy size={20} color='white' /> : event.type === 'yellow' ? <RectangleVertical size={20} color='yellow' /> : <RectangleVertical size={20} color='red'  />}</span>
+            <span>{event.type === 'goal' ? <PiSoccerBallFill size={20} color='white' /> : event.type === 'assist' ? <Trophy size={20} color='white' /> : event.type === 'yellow' ? <TbRectangleVerticalFilled size={20} color='yellow' /> : <TbRectangleVerticalFilled size={20} color='red'  />}</span>
             <div>
               <p><b>{eventLabel(event)}</b> · {player ? playerDisplayName(player) : event.type === 'goal' ? 'Autor não informado' : 'Jogador não informado'}</p>
               <small>{assist ? `Assistência de ${playerDisplayName(assist)} · ` : ''}{event.type === 'goal' ? `Gol para ${team?.shortName || 'equipe'}` : team?.name}</small>
