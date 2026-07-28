@@ -254,24 +254,37 @@ img {
   position: relative;
   display: inline-grid;
   place-items: center;
-  clip-path: polygon(12% 0, 88% 0, 100% 16%, 91% 78%, 50% 100%, 9% 78%, 0 16%);
-  color: #111914;
-  background: var(--team-color);
-  object-fit: cover;
+  color: var(--team-color);
   font-family: "Manrope", sans-serif;
-  font-weight: 900;
-  letter-spacing: -0.5px;
   border: 0;
 }
 
-.team-mark::after {
-  content: "";
+.team-mark > svg {
   position: absolute;
-  width: 70%;
-  height: 4px;
-  bottom: 9%;
-  background: rgba(17, 27, 22, 0.28);
-  transform: rotate(-8deg);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--team-color) 25%, transparent));
+  stroke: color-mix(in srgb, var(--team-color) 68%, #ffffff);
+  stroke-width: 8px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+.team-mark > b {
+  position: relative;
+  z-index: 1;
+  max-width: 72%;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: inherit;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  text-align: center;
+  text-overflow: clip;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 .team-mark--sm { width: 31px; height: 35px; font-size: 8px; }
@@ -7246,55 +7259,22 @@ img {
 
 .draw-team-customizer__vest {
   width: 54px;
-  height: 48px;
+  height: 54px;
   grid-row: span 2;
-  position: relative;
-  display: block;
+  display: grid;
+  place-items: center;
+  color: var(--draw-team-color);
   filter: drop-shadow(0 7px 11px color-mix(in srgb, var(--draw-team-color) 25%, transparent));
 }
 
-.draw-team-customizer__vest::before {
-  content: "";
-  position: absolute;
-  inset: 2px 5px 0;
-  border: 1px solid color-mix(in srgb, var(--draw-team-color) 78%, #ffffff);
-  border-radius: 8px 8px 11px 11px;
-  background: var(--draw-team-color);
-  clip-path: polygon(20% 0, 38% 11%, 62% 11%, 80% 0, 100% 18%, 85% 38%, 78% 31%, 78% 100%, 22% 100%, 22% 31%, 15% 38%, 0 18%);
-}
-
-.draw-team-customizer__vest::after {
-  content: "";
-  width: 12px;
-  height: 7px;
-  position: absolute;
-  left: 21px;
-  top: 4px;
-  border: 2px solid color-mix(in srgb, var(--draw-team-color) 48%, #06100a);
-  border-top: 0;
-  border-radius: 0 0 9px 9px;
-}
-
-.draw-team-customizer__vest i:first-child {
-  width: 3px;
-  height: 28px;
-  position: absolute;
-  left: 16px;
-  top: 13px;
-  z-index: 1;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.32);
-}
-
-.draw-team-customizer__vest i:last-child {
-  width: 14px;
-  height: 3px;
-  position: absolute;
-  left: 20px;
-  bottom: 5px;
-  z-index: 1;
-  border-radius: 3px;
-  background: rgba(5, 16, 10, 0.35);
+.draw-team-customizer__vest > svg {
+  width: 50px;
+  height: 50px;
+  overflow: visible;
+  stroke: color-mix(in srgb, var(--draw-team-color) 68%, #ffffff);
+  stroke-width: 8px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
 }
 
 .draw-team-customizer label {

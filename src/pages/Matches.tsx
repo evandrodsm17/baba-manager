@@ -18,7 +18,8 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
-import { PiSoccerBallFill } from "react-icons/pi";
+import { FaTshirt } from 'react-icons/fa';
+import { PiSoccerBallFill } from 'react-icons/pi';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { MatchCard } from '../components/MatchCard';
@@ -266,12 +267,12 @@ function MatchesList() {
               {!availablePlayers.length && <p>Nenhum jogador ativo disponível nesta organização.</p>}
               <div className="draw-team-customizer">
                 <article style={{ '--draw-team-color': drawHomeColor } as CSSProperties}>
-                  <span className="draw-team-customizer__vest"><i /><i /></span>
+                  <span className="draw-team-customizer__vest"><FaTshirt aria-hidden="true" /></span>
                   <label><span>Nome do primeiro time</span><input name="drawHomeName" required maxLength={32} value={drawHomeName} onChange={(event) => setDrawHomeName(event.target.value)} /></label>
                   <label className="draw-team-color"><span>Cor</span><input name="drawHomeColor" type="color" value={drawHomeColor} onChange={(event) => setDrawHomeColor(event.target.value)} /><code>{drawHomeColor.toUpperCase()}</code></label>
                 </article>
                 <article style={{ '--draw-team-color': drawAwayColor } as CSSProperties}>
-                  <span className="draw-team-customizer__vest"><i /><i /></span>
+                  <span className="draw-team-customizer__vest"><FaTshirt aria-hidden="true" /></span>
                   <label><span>Nome do segundo time</span><input name="drawAwayName" required maxLength={32} value={drawAwayName} onChange={(event) => setDrawAwayName(event.target.value)} /></label>
                   <label className="draw-team-color"><span>Cor</span><input name="drawAwayColor" type="color" value={drawAwayColor} onChange={(event) => setDrawAwayColor(event.target.value)} /><code>{drawAwayColor.toUpperCase()}</code></label>
                 </article>
@@ -1025,12 +1026,12 @@ function MatchDetails({ matchId }: { matchId: string }) {
         <form className="form" onSubmit={saveTeamIdentity}>
           <div className="draw-team-customizer draw-team-customizer--modal">
             <article style={{ '--draw-team-color': identityHomeColor } as CSSProperties}>
-              <span className="draw-team-customizer__vest"><i /><i /></span>
+              <span className="draw-team-customizer__vest"><FaTshirt aria-hidden="true" /></span>
               <label><span>Primeiro time</span><input name="homeTeamName" required maxLength={32} defaultValue={match.homeTeamName || 'Time Verde'} /></label>
               <label className="draw-team-color"><span>Cor do colete</span><input name="homeTeamColor" type="color" value={identityHomeColor} onChange={(event) => setIdentityHomeColor(event.target.value)} /></label>
             </article>
             <article style={{ '--draw-team-color': identityAwayColor } as CSSProperties}>
-              <span className="draw-team-customizer__vest"><i /><i /></span>
+              <span className="draw-team-customizer__vest"><FaTshirt aria-hidden="true" /></span>
               <label><span>Segundo time</span><input name="awayTeamName" required maxLength={32} defaultValue={match.awayTeamName || 'Time Preto'} /></label>
               <label className="draw-team-color"><span>Cor do colete</span><input name="awayTeamColor" type="color" value={identityAwayColor} onChange={(event) => setIdentityAwayColor(event.target.value)} /></label>
             </article>

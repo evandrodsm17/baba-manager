@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { FaShield } from 'react-icons/fa6';
 import { initials } from '../lib/utils';
 
 export function Logo({ compact = false }: { compact?: boolean }) {
@@ -98,8 +99,11 @@ export function TeamMark({
       className={`team-mark team-mark--${size}`}
       style={{ '--team-color': color } as React.CSSProperties}
       title={name}
+      role="img"
+      aria-label={`Escudo ${name}`}
     >
-      {shortName.slice(0, 3)}
+      <FaShield aria-hidden="true" />
+      <b aria-hidden="true">{shortName.slice(0, 3)}</b>
     </span>
   );
 }
