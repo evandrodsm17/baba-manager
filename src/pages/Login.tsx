@@ -56,7 +56,7 @@ export function Login() {
           </div>
           <div className="login-score-card__teams">
             <div><i className="mini-shield mini-shield--lime">BRA</i><strong>Brasil Favela FC</strong></div>
-            <span><small>COPA RESENHA</small><b>VS</b></span>
+            <span className="login-cup-title">COPA RESENHA<b>VS</b></span>
             <div><i className="mini-shield mini-shield--orange">2IR</i><strong>EC 2 Irmãos</strong></div>
           </div>
           <div className="login-score-card__foot"><MapPin size={12} /> Arena Pituaçu</div>
@@ -84,7 +84,7 @@ export function Login() {
               <span>O modo demo está pronto. Para o login real, adicione as chaves do Firebase no arquivo <b>.env</b>.</span>
             </div>
           )}
-          <a className="login-public-link" href="/ligas-publicas"><Globe2 size={18} /> Ver ligas públicas sem entrar</a>
+          <a className="login-public-link" href="/ligas-publicas"><Globe2 size={18} /> Ver ligas públicas</a>
           <div className="login-divider"><span>ou explore a demonstração</span></div>
           {!demoOpen ? (
             <Button variant="secondary" onClick={() => setDemoOpen(true)}>Acessar modo demonstração</Button>

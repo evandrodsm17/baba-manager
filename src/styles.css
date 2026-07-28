@@ -489,8 +489,8 @@ img {
   border: 1px solid rgba(200, 255, 50, 0.25);
   border-radius: 7px;
   background: rgba(200, 255, 50, 0.07);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.5px;
 }
 
@@ -545,8 +545,8 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #7e8e84;
-  font-size: 8px;
+  color: #fdfffe;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 1px;
 }
@@ -557,6 +557,9 @@ img {
 
 .login-score-card__head small {
   color: var(--lime);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
 }
 
 .login-score-card__teams {
@@ -724,6 +727,8 @@ img {
 
 .login-divider span {
   padding: 0 10px;
+  font-size: 12px;
+  color: #ffffffd0;
 }
 
 .demo-roles {
@@ -1258,8 +1263,8 @@ img {
 
 .app-loading p {
   margin-top: 12px;
-  color: #718078;
-  font-size: 9px;
+  color: #2ce955;
+  font-size: 14px;
 }
 
 /* Dashboard */
@@ -3145,6 +3150,8 @@ img {
   background: #11241a;
   font-size: 12px;
   font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .login-public-link:hover {
@@ -4866,6 +4873,20 @@ img {
 .login-panel {
   color: var(--text);
   background: #08140d;
+}
+
+.login-cup-title{
+  font-size:11px;
+  font-weight:600;
+  font-family:var(--font-family);
+  text-align: center;
+  margin: 0px;
+}
+
+.login-cup-title b{
+  color: #b9e966;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .login-panel {
