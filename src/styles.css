@@ -5470,6 +5470,46 @@ img {
   white-space: nowrap;
 }
 
+.match-roster__player > .match-roster__actions {
+  min-width: max-content;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.manual-checkin-button {
+  min-height: 30px;
+  padding: 5px 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #d8f7a0;
+  border: 1px solid #49672f;
+  border-radius: 8px;
+  background: #172a12;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.manual-checkin-button:hover:not(:disabled) {
+  color: #f0ffc9;
+  border-color: #78a936;
+  background: #203918;
+}
+
+.manual-checkin-button:focus-visible {
+  outline: 2px solid #b7f52e;
+  outline-offset: 2px;
+}
+
+.manual-checkin-button:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+
 .match-roster__empty {
   padding: 22px 15px;
   color: #8c9d92;
@@ -5496,10 +5536,16 @@ img {
     grid-template-columns: 34px minmax(0, 1fr);
   }
 
-  .match-roster__player .badge {
+  .match-roster__player > .match-roster__actions {
     width: fit-content;
     margin-left: 43px;
     grid-column: 1 / -1;
+    align-items: flex-start;
+  }
+
+  .match-roster__player .match-roster__actions .badge {
+    width: auto;
+    margin-left: 0;
   }
 }
 
@@ -7373,6 +7419,40 @@ img {
   line-height: 1.45;
 }
 
+.manual-checkin-notice {
+  margin: 0 16px 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #b7f52e;
+  border: 1px solid #3d5d2c;
+  border-radius: 11px;
+  background: #142712;
+}
+
+.manual-checkin-notice > svg {
+  margin-top: 1px;
+  flex: 0 0 auto;
+}
+
+.manual-checkin-notice p {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.manual-checkin-notice strong {
+  color: #e4f8b9;
+  font-size: 13px;
+}
+
+.manual-checkin-notice span {
+  color: #abc09e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .draw-waiting-list {
   margin-top: 14px;
   padding-top: 14px;
@@ -7468,6 +7548,14 @@ img {
   white-space: nowrap;
 }
 
+.draw-waiting-list__actions {
+  min-width: max-content;
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 6px;
+}
+
 @media (max-width: 620px) {
   .match-type-selector,
   .draw-player-options,
@@ -7498,10 +7586,15 @@ img {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .draw-waiting-list article .badge {
+  .draw-waiting-list article > .badge,
+  .draw-waiting-list__actions {
     width: fit-content;
     margin-left: 45px;
     grid-column: 1 / -1;
+  }
+
+  .draw-waiting-list__actions {
+    align-items: flex-start;
   }
 }
 

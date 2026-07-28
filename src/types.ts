@@ -162,6 +162,9 @@ export interface Checkin {
   matchId: string;
   playerId: string;
   checkedAt: string;
+  source?: 'player' | 'manager';
+  registeredByUserId?: string;
+  registeredByName?: string;
   latitude?: number;
   longitude?: number;
   distanceMeters?: number;

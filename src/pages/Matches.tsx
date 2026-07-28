@@ -34,7 +34,7 @@ import {
   shufflePlayerIds,
 } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
-import type { EventType, Match, MatchEvent, MatchType, StatSubmission } from '../types';
+import type { Checkin, EventType, Match, MatchEvent, MatchType, StatSubmission } from '../types';
 
 export function Matches() {
   const params = useParams();
@@ -318,6 +318,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const [teamIdentityOpen, setTeamIdentityOpen] = useState(false);
   const [identityHomeColor, setIdentityHomeColor] = useState('#b7f52e');
   const [identityAwayColor, setIdentityAwayColor] = useState('#5f7567');
+  const [manualCheckinPlayerId, setManualCheckinPlayerId] = useState('');
   const [editingEvent, setEditingEvent] = useState<MatchEvent | null>(null);
   const [eventType, setEventType] = useState<EventType>('goal');
   const [eventTeam, setEventTeam] = useState('');
@@ -358,6 +359,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const pendingCheckinPlayers = data.players
     .filter((player) => drawLineup?.pendingCheckinPlayerIds.includes(player.id))
     .sort((a, b) => playerDisplayName(a).localeCompare(playerDisplayName(b), 'pt-BR'));
+  const hasPlayersWithoutCheckin = isDrawMatch(match)
+    ? pendingCheckinPlayers.length > 0
+    : [...homePlayers, ...awayPlayers].some((player) => !checkedIn.some((checkin) => checkin.playerId === player.id));
   const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const playerCanSubmit = currentUser?.role === 'player'
     && match.status === 'finished'
@@ -377,6 +381,61 @@ function MatchDetails({ matchId }: { matchId: string }) {
     awayPlayerIds: effectiveAwayPlayerIds,
     waitingPlayerIds: effectiveWaitingPlayerIds,
   } : {};
+
+  const registerManualCheckin = async (playerId: string) => {
+    if (!canManage || !currentUser) return;
+    const player = data.players.find((item) => item.id === playerId);
+    const eligible = player && (
+      isDrawMatch(match)
+        ? match.selectedPlayerIds?.includes(player.id)
+        : player.teamId === match.homeTeamId || player.teamId === match.awayTeamId
+    );
+    if (!player || !eligible) {
+      notify('Este jogador não faz parte da partida.', 'error');
+      return;
+    }
+    const existingCheckin = data.checkins.find((item) => item.matchId === match.id && item.playerId === player.id);
+    if (existingCheckin?.validated) {
+      notify('O jogador já possui check-in confirmado.', 'info');
+      return;
+    }
+    if (!window.confirm(`Confirmar manualmente o check-in de ${playerDisplayName(player)}? A geolocalização não será exigida.`)) return;
+
+    setManualCheckinPlayerId(player.id);
+    try {
+      const entity: Checkin = {
+        ...(existingCheckin || {
+          id: createId('checkin'),
+          organizationId: match.organizationId,
+          matchId: match.id,
+          playerId: player.id,
+        }),
+        checkedAt: new Date().toISOString(),
+        validated: true,
+        source: 'manager',
+        registeredByUserId: currentUser.id,
+        registeredByName: currentUser.name,
+      };
+      await saveEntity('checkins', entity, `confirmou manualmente o check-in de ${playerDisplayName(player)}`);
+
+      if (isDrawMatch(match) && hasPersistedDrawLineup
+        && !effectiveHomePlayerIds.includes(player.id)
+        && !effectiveAwayPlayerIds.includes(player.id)
+        && !effectiveWaitingPlayerIds.includes(player.id)) {
+        await saveEntity('matches', {
+          ...match,
+          waitingPlayerIds: [...effectiveWaitingPlayerIds, player.id],
+        });
+        notify(`Check-in de ${playerDisplayName(player)} registrado sem geolocalização. Como a escalação já estava fechada, o jogador entrou na fila de espera.`);
+      } else {
+        notify(`Check-in de ${playerDisplayName(player)} registrado sem geolocalização.`);
+      }
+    } catch {
+      notify('Não foi possível registrar o check-in manual.', 'error');
+    } finally {
+      setManualCheckinPlayerId('');
+    }
+  };
 
   const openEventForm = (item?: MatchEvent) => {
     if (match.status === 'finished') {
@@ -676,6 +735,15 @@ function MatchDetails({ matchId }: { matchId: string }) {
             <div><h2>Jogadores e check-in</h2><p>{isDrawMatch(match) ? 'Prioridade por ordem de check-in, com convidados depois dos demais' : 'Presença dos elencos nesta partida'}</p></div>
             <Badge tone="lime">{checkedIn.length} confirmado{checkedIn.length === 1 ? '' : 's'}</Badge>
           </div>
+          {canManage && hasPlayersWithoutCheckin && (
+            <div className="manual-checkin-notice">
+              <CheckCircle2 size={19} />
+              <p>
+                <strong>Check-in pelo gerenciador</strong>
+                <span>Se alguém estiver sem celular ou internet, confirme pela lista. A geolocalização não será exigida e o registro ficará identificado como manual.</span>
+              </p>
+            </div>
+          )}
           {isDrawMatch(match) && match.status === 'scheduled' && !drawLineup?.lineupReady && (
             <div className="draw-lineup-warning">
               <ShieldAlert size={20} />
@@ -707,11 +775,26 @@ function MatchDetails({ matchId }: { matchId: string }) {
                             <strong>{playerDisplayName(player)}</strong>
                             <small>{player.membershipType === 'subscriber' ? 'Mensalista · ' : player.membershipType === 'guest' ? 'Convidado · ' : ''}{player.shirtNumber ? `#${player.shirtNumber} · ` : ''}{player.positions.join(', ')}</small>
                           </div>
-                          <Badge tone={checkin?.validated ? 'success' : checkin ? 'warning' : 'neutral'} dot>
-                            {isDrawMatch(match) && checkin?.validated
-                              ? `#${drawLineup?.checkinPositionByPlayerId.get(player.id) || '—'} check-in`
-                              : checkin?.validated ? 'Confirmado' : checkin ? 'Não validado' : 'Sem check-in'}
-                          </Badge>
+                          <div className="match-roster__actions">
+                            <Badge tone={checkin?.validated ? 'success' : checkin ? 'warning' : 'neutral'} dot>
+                              {isDrawMatch(match) && checkin?.validated
+                                ? `#${drawLineup?.checkinPositionByPlayerId.get(player.id) || '—'}${checkin.source === 'manager' ? ' · Manual' : ' check-in'}`
+                                : checkin?.validated ? checkin.source === 'manager' ? 'Confirmado manualmente' : 'Confirmado' : checkin ? 'Não validado' : 'Sem check-in'}
+                            </Badge>
+                            {canManage && !checkin?.validated && (
+                              <button
+                                className="manual-checkin-button"
+                                type="button"
+                                disabled={manualCheckinPlayerId === player.id}
+                                aria-label={`Confirmar check-in de ${playerDisplayName(player)} sem geolocalização`}
+                                title="Registrar presença sem exigir geolocalização"
+                                onClick={() => registerManualCheckin(player.id)}
+                              >
+                                <CheckCircle2 size={14} />
+                                <span>{manualCheckinPlayerId === player.id ? 'Registrando...' : 'Confirmar check-in'}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     }) : (
@@ -732,11 +815,15 @@ function MatchDetails({ matchId }: { matchId: string }) {
                 <div>
                   {waitingPlayers.map((player) => {
                     const position = drawLineup?.checkinPositionByPlayerId.get(player.id);
+                    const checkin = checkedIn.find((item) => item.playerId === player.id);
                     return (
                       <article key={player.id}>
                         <Avatar name={player.name} src={player.photoUrl} size="sm" />
-                        <span><strong>{playerDisplayName(player)}</strong><small>{player.membershipType === 'guest' ? 'Convidado · prioridade reduzida' : `Check-in #${position || '—'}`} · {player.positions.join(', ')}</small></span>
-                        <Badge tone={player.membershipType === 'guest' ? 'warning' : 'neutral'}>{player.membershipType === 'guest' ? 'Convidado' : `#${position || '—'}`}</Badge>
+                        <span>
+                          <strong>{playerDisplayName(player)}</strong>
+                          <small>{player.membershipType === 'guest' ? 'Convidado · prioridade reduzida · ' : ''}Check-in {checkin?.source === 'manager' ? 'manual ' : ''}#{position || '—'} · {player.positions.join(', ')}</small>
+                        </span>
+                        <Badge tone={player.membershipType === 'guest' ? 'warning' : 'neutral'}>{checkin?.source === 'manager' ? 'Manual' : player.membershipType === 'guest' ? 'Convidado' : `#${position || '—'}`}</Badge>
                       </article>
                     );
                   })}
@@ -773,9 +860,24 @@ function MatchDetails({ matchId }: { matchId: string }) {
                           {' · '}{player.positions.join(', ')}{team ? ` · ${team.shortName}` : ''}
                         </small>
                       </span>
-                      <Badge tone={unvalidatedCheckin ? 'warning' : 'neutral'} dot>
-                        {unvalidatedCheckin ? 'Não validado' : 'Check-in não realizado'}
-                      </Badge>
+                      <div className="draw-waiting-list__actions">
+                        <Badge tone={unvalidatedCheckin ? 'warning' : 'neutral'} dot>
+                          {unvalidatedCheckin ? 'Não validado' : 'Check-in não realizado'}
+                        </Badge>
+                        {canManage && (
+                          <button
+                            className="manual-checkin-button"
+                            type="button"
+                            disabled={manualCheckinPlayerId === player.id}
+                            aria-label={`Confirmar check-in de ${playerDisplayName(player)} sem geolocalização`}
+                            title="Registrar presença sem exigir geolocalização"
+                            onClick={() => registerManualCheckin(player.id)}
+                          >
+                            <CheckCircle2 size={14} />
+                            <span>{manualCheckinPlayerId === player.id ? 'Registrando...' : 'Confirmar check-in'}</span>
+                          </button>
+                        )}
+                      </div>
                     </article>
                   );
                 })}

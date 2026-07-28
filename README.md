@@ -402,6 +402,8 @@ No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer eq
 
 O gerenciador pode usar **Personalizar times** para corrigir nomes e cores sem alterar a escalação ou a súmula. Enquanto a partida estiver agendada, também pode usar **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
 
+Se um jogador estiver sem celular ou internet, o gerenciador pode usar **Confirmar check-in** na relação de jogadores da partida. Esse registro manual ignora a exigência de geolocalização, utiliza o horário em que o gerenciador confirmou a presença e fica identificado no sistema para auditoria. Se a escalação do sorteio já estiver fechada, o jogador será incluído na fila de espera sem alterar os times.
+
 Em **Jogadores**, o campo **Tipo de participação** permite identificar opcionalmente mensalistas e convidados. Essa classificação também aparece na seleção do sorteio e pode ser usada como filtro na listagem.
 
 ### Módulo financeiro

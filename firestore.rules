@@ -121,6 +121,29 @@ service cloud.firestore {
         );
     }
 
+    function validCheckinParticipant(data) {
+      let matchData = get(/databases/$(database)/documents/matches/$(data.matchId)).data;
+      let playerData = get(/databases/$(database)/documents/players/$(data.playerId)).data;
+      return exists(/databases/$(database)/documents/matches/$(data.matchId))
+        && exists(/databases/$(database)/documents/players/$(data.playerId))
+        && matchData.organizationId == data.organizationId
+        && playerData.organizationId == data.organizationId
+        && (
+          (
+            matchData.get('matchType', 'teams') == 'draw'
+            && data.playerId in matchData.get('selectedPlayerIds', [])
+          )
+          ||
+          (
+            matchData.get('matchType', 'teams') == 'teams'
+            && (
+              playerData.teamId == matchData.homeTeamId
+              || playerData.teamId == matchData.awayTeamId
+            )
+          )
+        );
+    }
+
     match /users/{userId} {
       allow read: if isMaster() || (signedIn() && request.auth.uid == userId);
 
@@ -212,13 +235,31 @@ service cloud.firestore {
       allow read: if isMaster() || sameOrganization(resource.data);
       allow create: if isMaster()
         || (
-          isPlayer()
-          && sameOrganization(request.resource.data)
-          && request.resource.data.playerId == profile().playerId
+          validCheckinParticipant(request.resource.data)
           && request.resource.data.validated == true
+          && (
+            (
+              isPlayer()
+              && request.resource.data.playerId == profile().playerId
+            )
+            ||
+            (
+              isManager()
+              && sameOrganization(request.resource.data)
+              && request.resource.data.get('source', '') == 'manager'
+              && request.resource.data.get('registeredByUserId', '') == request.auth.uid
+            )
+          )
         );
-      allow update, delete: if isMaster()
-        || (isManager() && sameOrganization(resource.data));
+      allow update: if isMaster()
+        || (
+          isManager()
+          && sameOrganization(resource.data)
+          && request.resource.data.organizationId == resource.data.organizationId
+          && request.resource.data.matchId == resource.data.matchId
+          && request.resource.data.playerId == resource.data.playerId
+        );
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
     }
 
     match /statSubmissions/{submissionId} {
