@@ -10,6 +10,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useState } from 'react';
+import { FaShield } from 'react-icons/fa6';
 import { useApp } from '../context/AppContext';
 import { isFirebaseConfigured } from '../lib/firebase';
 import { Button, Logo } from '../components/UI';
@@ -55,9 +56,19 @@ export function Login() {
             <small>AMANHÃ · 19:30</small>
           </div>
           <div className="login-score-card__teams">
-            <div><i className="mini-shield mini-shield--lime">BRA</i><strong>Brasil Favela FC</strong></div>
+            <div>
+              <span className="mini-shield mini-shield--lime" role="img" aria-label="Escudo Brasil Favela FC">
+                <FaShield aria-hidden="true" /><b aria-hidden="true">BRA</b>
+              </span>
+              <strong>Brasil Favela FC</strong>
+            </div>
             <span className="login-cup-title">COPA RESENHA<b>VS</b></span>
-            <div><i className="mini-shield mini-shield--orange">2IR</i><strong>EC 2 Irmãos</strong></div>
+            <div>
+              <span className="mini-shield mini-shield--orange" role="img" aria-label="Escudo EC 2 Irmãos">
+                <FaShield aria-hidden="true" /><b aria-hidden="true">2IR</b>
+              </span>
+              <strong>EC 2 Irmãos</strong>
+            </div>
           </div>
           <div className="login-score-card__foot"><MapPin size={12} /> Arena Pituaçu</div>
         </div>

@@ -611,19 +611,43 @@ img {
 }
 
 .mini-shield {
+  --mini-shield-color: var(--lime);
   width: 34px;
   height: 39px;
+  position: relative;
   display: grid;
   place-items: center;
-  clip-path: polygon(10% 0, 90% 0, 100% 18%, 88% 78%, 50% 100%, 12% 78%, 0 18%);
-  color: var(--ink);
+  flex: 0 0 auto;
+  color: var(--mini-shield-color);
   font-size: 8px;
-  font-style: normal;
-  font-weight: 900;
 }
 
-.mini-shield--lime { background: var(--lime); }
-.mini-shield--orange { background: var(--orange); }
+.mini-shield > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--mini-shield-color) 30%, transparent));
+  stroke: color-mix(in srgb, var(--mini-shield-color) 68%, #ffffff);
+  stroke-width: 8px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+.mini-shield > b {
+  position: relative;
+  z-index: 1;
+  color: #ffffff;
+  font-size: inherit;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.mini-shield--lime { --mini-shield-color: var(--lime); }
+.mini-shield--orange { --mini-shield-color: var(--orange); }
 
 .login-score-card__foot {
   justify-content: center;
