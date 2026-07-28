@@ -2,6 +2,7 @@ export type UserRole = 'master' | 'manager' | 'player';
 export type MatchStatus = 'scheduled' | 'live' | 'finished';
 export type MatchType = 'teams' | 'draw';
 export type EventType = 'goal' | 'assist' | 'yellow' | 'red';
+export type AttendanceStatus = 'going' | 'maybe' | 'declined';
 
 export interface UserAccess {
   id: string;
@@ -125,6 +126,9 @@ export interface Match {
   homeScore?: number;
   awayScore?: number;
   requiresGeolocation: boolean;
+  requiresConfirmation?: boolean;
+  confirmationDeadline?: string;
+  confirmationLimit?: number;
   events: MatchEvent[];
   notes?: string;
 }
@@ -169,6 +173,18 @@ export interface Checkin {
   longitude?: number;
   distanceMeters?: number;
   validated: boolean;
+}
+
+export interface MatchConfirmation {
+  id: string;
+  organizationId: string;
+  matchId: string;
+  playerId: string;
+  status: AttendanceStatus;
+  respondedAt: string;
+  source: 'player' | 'manager';
+  registeredByUserId?: string;
+  registeredByName?: string;
 }
 
 export interface StatSubmission {
@@ -254,6 +270,7 @@ export interface AppData {
   leagues: League[];
   matches: Match[];
   checkins: Checkin[];
+  matchConfirmations: MatchConfirmation[];
   statSubmissions: StatSubmission[];
   financialSettings: FinancialSettings[];
   financialCharges: FinancialCharge[];

@@ -19,8 +19,12 @@ import { Navigate, useLocation } from './lib/router';
 
 export default function App() {
   const { currentUser, authLoading } = useApp();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const publicLeagueMatch = pathname.match(/^\/liga\/([^/]+)\/?$/);
+  const requestedRedirect = new URLSearchParams(search).get('redirect');
+  const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
+    ? requestedRedirect
+    : '/painel';
 
   if (pathname === '/') return <ProductHome />;
   if (pathname === '/ligas-publicas') return <PublicLeagues />;
@@ -29,8 +33,8 @@ export default function App() {
   if (authLoading) {
     return <div className="app-loading"><Logo /><span /><p>Preparando o campo...</p></div>;
   }
-  if (pathname === '/login') return currentUser ? <Navigate to="/painel" replace /> : <Login />;
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (pathname === '/login') return currentUser ? <Navigate to={safeRedirect} replace /> : <Login />;
+  if (!currentUser) return <Navigate to={`/login?redirect=${encodeURIComponent(`${pathname}${search}`)}`} replace />;
 
   return (
     <Shell>

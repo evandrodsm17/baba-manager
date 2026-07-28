@@ -58,7 +58,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-const storageKey = 'baba-manager-demo-data-v6';
+const storageKey = 'baba-manager-demo-data-v7';
 
 const emptyData: AppData = {
   organizations: [],
@@ -68,6 +68,7 @@ const emptyData: AppData = {
   leagues: [],
   matches: [],
   checkins: [],
+  matchConfirmations: [],
   statSubmissions: [],
   financialSettings: [],
   financialCharges: [],
@@ -164,6 +165,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : query(collection(firestore, key), where('organizationId', '==', organizationId || '__none__'));
       subscribe(key, source);
     });
+
+    if (currentUser.role === 'master') {
+      subscribe('matchConfirmations', query(collection(firestore, 'matchConfirmations')));
+    } else if (organizationId) {
+      subscribe('matchConfirmations', query(
+        collection(firestore, 'matchConfirmations'),
+        where('organizationId', '==', organizationId),
+      ));
+    }
 
     if (currentUser.role === 'master') {
       financialKeys.forEach((key) => subscribe(key, query(collection(firestore, key))));

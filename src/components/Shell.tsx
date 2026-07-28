@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Trophy,
   UserCog,
+  UserCheck,
   UsersRound,
   X,
 } from 'lucide-react';
@@ -39,7 +40,7 @@ const navByRole = {
   ],
   player: [
     { to: '/painel', label: 'Início', icon: LayoutDashboard },
-    { to: '/check-in', label: 'Check-in', icon: MapPinned },
+    { to: '/check-in', label: 'Presença', icon: UserCheck },
     { to: '/partidas', label: 'Partidas', icon: CalendarDays },
     { to: '/ligas', label: 'Classificação', icon: Trophy },
     { to: '/jogadores', label: 'Atletas', icon: UsersRound },

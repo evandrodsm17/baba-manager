@@ -27,6 +27,7 @@ export function Settings() {
     leagues: data.leagues.filter((item) => item.organizationId === orgId).length,
     matches: data.matches.filter((item) => item.organizationId === orgId).length,
     checkins: data.checkins.filter((item) => item.organizationId === orgId).length,
+    confirmations: data.matchConfirmations.filter((item) => item.organizationId === orgId).length,
     submissions: data.statSubmissions.filter((item) => item.organizationId === orgId).length,
     settings: data.financialSettings.filter((item) => item.organizationId === orgId).length,
     charges: data.financialCharges.filter((item) => item.organizationId === orgId).length,
@@ -64,7 +65,7 @@ export function Settings() {
         <div>
           <span className="eyebrow">ZONA DE PERIGO</span>
           <h2>Limpar dados da organização</h2>
-          <p>Remove equipes, jogadores, partidas, ligas, locais, check-ins, estatísticas enviadas e todo o módulo financeiro.</p>
+          <p>Remove equipes, jogadores, partidas, ligas, locais, confirmações, check-ins, estatísticas enviadas e todo o módulo financeiro.</p>
           <div className="settings-danger-zone__kept">
             <Database size={17} />
             <span><strong>Serão preservados:</strong> a organização, seu acesso de gerenciador, outros gerenciadores e o histórico de auditoria.</span>
@@ -83,7 +84,7 @@ export function Settings() {
         confirmationText="LIMPAR TUDO"
         confirmLabel="Limpar organização"
         consequences={[
-          `${counts.matches} partida${counts.matches === 1 ? '' : 's'}, ${counts.checkins} check-in${counts.checkins === 1 ? '' : 's'} e ${counts.submissions} envio${counts.submissions === 1 ? '' : 's'} de estatísticas`,
+          `${counts.matches} partida${counts.matches === 1 ? '' : 's'}, ${counts.confirmations} confirmação${counts.confirmations === 1 ? '' : 'ões'}, ${counts.checkins} check-in${counts.checkins === 1 ? '' : 's'} e ${counts.submissions} envio${counts.submissions === 1 ? '' : 's'} de estatísticas`,
           `${counts.players} jogador${counts.players === 1 ? '' : 'es'} e ${counts.teams} equipe${counts.teams === 1 ? '' : 's'}`,
           `${counts.leagues} liga${counts.leagues === 1 ? '' : 's'}, incluindo páginas públicas`,
           `${counts.venues} loca${counts.venues === 1 ? 'l' : 'is'} e ${financialRecords} registro${financialRecords === 1 ? '' : 's'} financeiro${financialRecords === 1 ? '' : 's'}`,

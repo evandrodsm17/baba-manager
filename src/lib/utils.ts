@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Checkin, League, Match, MatchEvent, Player, Team } from '../types';
+import type { Checkin, League, Match, MatchConfirmation, MatchEvent, Player, Team } from '../types';
 
 export interface Standing {
   teamId: string;
@@ -87,6 +87,98 @@ export function matchIncludesPlayer(match: Match, player?: Player) {
   return match.homeTeamId === player.teamId || match.awayTeamId === player.teamId;
 }
 
+export function getMatchEligiblePlayerIds(match: Match, players: Player[]) {
+  if (isDrawMatch(match)) return match.selectedPlayerIds || [];
+  return players
+    .filter((player) => player.teamId === match.homeTeamId || player.teamId === match.awayTeamId)
+    .map((player) => player.id);
+}
+
+export interface ConfirmationQueue {
+  eligiblePlayerIds: string[];
+  confirmedPlayerIds: string[];
+  waitingPlayerIds: string[];
+  maybePlayerIds: string[];
+  declinedPlayerIds: string[];
+  pendingPlayerIds: string[];
+  positionByPlayerId: Map<string, number>;
+  confirmationByPlayerId: Map<string, MatchConfirmation>;
+  confirmedGoalkeepers: number;
+  capacity?: number;
+}
+
+export function buildConfirmationQueue(
+  match: Match,
+  players: Player[],
+  confirmations: MatchConfirmation[],
+): ConfirmationQueue {
+  const eligiblePlayerIds = getMatchEligiblePlayerIds(match, players);
+  const eligibleSet = new Set(eligiblePlayerIds);
+  const playerById = new Map(players.map((player) => [player.id, player]));
+  const confirmationByPlayerId = new Map<string, MatchConfirmation>();
+
+  confirmations
+    .filter((confirmation) => confirmation.matchId === match.id && eligibleSet.has(confirmation.playerId))
+    .forEach((confirmation) => {
+      const current = confirmationByPlayerId.get(confirmation.playerId);
+      if (!current || confirmation.respondedAt > current.respondedAt) {
+        confirmationByPlayerId.set(confirmation.playerId, confirmation);
+      }
+    });
+
+  const goingPlayerIds = eligiblePlayerIds
+    .filter((playerId) => confirmationByPlayerId.get(playerId)?.status === 'going')
+    .sort((playerIdA, playerIdB) => {
+      const playerA = playerById.get(playerIdA);
+      const playerB = playerById.get(playerIdB);
+      return (
+        Number(playerA?.membershipType === 'guest') - Number(playerB?.membershipType === 'guest')
+        || (confirmationByPlayerId.get(playerIdA)?.respondedAt || '')
+          .localeCompare(confirmationByPlayerId.get(playerIdB)?.respondedAt || '')
+      );
+    });
+  const configuredCapacity = match.confirmationLimit
+    || (isDrawMatch(match) ? Math.max(1, match.maxPlayersPerTeam || 1) * 2 : undefined);
+  const capacity = configuredCapacity && configuredCapacity > 0 ? configuredCapacity : undefined;
+  const reservedGoalkeeperIds = isDrawMatch(match) && capacity
+    ? goingPlayerIds
+      .filter((playerId) => playerById.get(playerId)?.positions.some((position) => position.toLocaleLowerCase('pt-BR') === 'goleiro'))
+      .slice(0, Math.min(2, capacity))
+    : [];
+  const confirmedSelection = capacity
+    ? new Set([
+      ...reservedGoalkeeperIds,
+      ...goingPlayerIds
+        .filter((playerId) => !reservedGoalkeeperIds.includes(playerId))
+        .slice(0, Math.max(0, capacity - reservedGoalkeeperIds.length)),
+    ])
+    : new Set(goingPlayerIds);
+  const confirmedPlayerIds = goingPlayerIds.filter((playerId) => confirmedSelection.has(playerId));
+  const waitingPlayerIds = goingPlayerIds.filter((playerId) => !confirmedSelection.has(playerId));
+  const confirmedSet = new Set(confirmedPlayerIds);
+  const confirmedGoalkeepers = players.filter((player) => (
+    confirmedSet.has(player.id)
+    && player.positions.some((position) => position.toLocaleLowerCase('pt-BR') === 'goleiro')
+  )).length;
+
+  return {
+    eligiblePlayerIds,
+    confirmedPlayerIds,
+    waitingPlayerIds,
+    maybePlayerIds: eligiblePlayerIds.filter((playerId) => confirmationByPlayerId.get(playerId)?.status === 'maybe'),
+    declinedPlayerIds: eligiblePlayerIds.filter((playerId) => confirmationByPlayerId.get(playerId)?.status === 'declined'),
+    pendingPlayerIds: eligiblePlayerIds.filter((playerId) => !confirmationByPlayerId.has(playerId)),
+    positionByPlayerId: new Map(goingPlayerIds.map((playerId, index) => [playerId, index + 1])),
+    confirmationByPlayerId,
+    confirmedGoalkeepers,
+    capacity,
+  };
+}
+
+export function confirmationDeadlinePassed(match: Match, now = new Date()) {
+  return Boolean(match.confirmationDeadline && +new Date(match.confirmationDeadline) < +now);
+}
+
 export function getPlayerMatchTeamId(match: Match, playerId: string) {
   if (match.homePlayerIds?.includes(playerId)) return match.homeTeamId;
   if (match.awayPlayerIds?.includes(playerId)) return match.awayTeamId;
@@ -121,8 +213,15 @@ export interface DrawLineup {
   checkinPositionByPlayerId: Map<string, number>;
 }
 
-export function buildDrawLineup(match: Match, players: Player[], checkins: Checkin[]): DrawLineup {
-  const selectedIds = match.selectedPlayerIds || [];
+export function buildDrawLineup(
+  match: Match,
+  players: Player[],
+  checkins: Checkin[],
+  confirmations: MatchConfirmation[] = [],
+): DrawLineup {
+  const selectedIds = match.requiresConfirmation
+    ? buildConfirmationQueue(match, players, confirmations).confirmedPlayerIds
+    : match.selectedPlayerIds || [];
   const maxPlayersPerTeam = Math.max(1, match.maxPlayersPerTeam || Math.ceil(selectedIds.length / 2) || 1);
   const playerMap = new Map(players.map((player) => [player.id, player]));
   const earliestCheckin = new Map<string, Checkin>();

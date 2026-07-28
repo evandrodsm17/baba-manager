@@ -1,10 +1,34 @@
-import { CheckCircle2, Clock3, LocateFixed, MapPin, Navigation, Radio, ShieldCheck, Smartphone, Wifi } from 'lucide-react';
+import {
+  Check,
+  CheckCircle2,
+  CircleHelp,
+  Clock3,
+  Hourglass,
+  LocateFixed,
+  MapPin,
+  Navigation,
+  Radio,
+  ShieldCheck,
+  Smartphone,
+  UserCheck,
+  Wifi,
+  X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Badge, Button, EmptyState, PageHeader, SuccessSeal } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { buildDrawLineup, formatLongDate, getMatchTeams, haversineDistance, isDrawMatch, matchIncludesPlayer } from '../lib/utils';
-import type { Checkin } from '../types';
+import {
+  buildConfirmationQueue,
+  buildDrawLineup,
+  confirmationDeadlinePassed,
+  formatLongDate,
+  getMatchTeams,
+  haversineDistance,
+  isDrawMatch,
+  matchIncludesPlayer,
+} from '../lib/utils';
+import type { AttendanceStatus, Checkin, MatchConfirmation } from '../types';
 
 type CheckinState = 'idle' | 'locating' | 'success' | 'outside' | 'error';
 
@@ -12,6 +36,7 @@ export function CheckinPage() {
   const { data, currentUser, saveEntity, notify, isDemo } = useApp();
   const [state, setState] = useState<CheckinState>('idle');
   const [distance, setDistance] = useState<number>();
+  const [responding, setResponding] = useState<AttendanceStatus>();
   const player = data.players.find((item) => item.id === currentUser?.playerId);
   const nextMatch = data.matches
     .filter((match) => match.status === 'scheduled' && matchIncludesPlayer(match, player))
@@ -19,9 +44,63 @@ export function CheckinPage() {
   const venue = data.venues.find((item) => item.id === nextMatch?.venueId);
   const existing = data.checkins.find((item) => item.matchId === nextMatch?.id && item.playerId === player?.id && item.validated);
   const drawLineup = nextMatch && isDrawMatch(nextMatch)
-    ? buildDrawLineup(nextMatch, data.players, data.checkins)
+    ? buildDrawLineup(nextMatch, data.players, data.checkins, data.matchConfirmations)
     : null;
   const drawTeams = nextMatch && drawLineup ? getMatchTeams(nextMatch, data.teams) : null;
+  const confirmationQueue = nextMatch
+    ? buildConfirmationQueue(nextMatch, data.players, data.matchConfirmations)
+    : null;
+  const confirmation = player
+    ? confirmationQueue?.confirmationByPlayerId.get(player.id)
+    : undefined;
+  const hasConfirmedSpot = Boolean(player && confirmationQueue?.confirmedPlayerIds.includes(player.id));
+  const isConfirmationWaitlisted = Boolean(player && confirmationQueue?.waitingPlayerIds.includes(player.id));
+  const deadlinePassed = nextMatch ? confirmationDeadlinePassed(nextMatch) : false;
+  const checkinAllowed = !nextMatch?.requiresConfirmation || hasConfirmedSpot;
+
+  const saveAttendance = async (status: AttendanceStatus) => {
+    if (!nextMatch || !player || !currentUser || !nextMatch.requiresConfirmation) return;
+    if (existing) {
+      notify('Sua presença já foi validada. Fale com o gerenciador se precisar cancelar.', 'info');
+      return;
+    }
+    if (deadlinePassed || nextMatch.status !== 'scheduled') {
+      notify('O prazo de confirmação foi encerrado. Fale com o gerenciador.', 'error');
+      return;
+    }
+    setResponding(status);
+    try {
+      const entity: MatchConfirmation = {
+        id: confirmation?.id || `${nextMatch.id}-${player.id}`,
+        organizationId: nextMatch.organizationId,
+        matchId: nextMatch.id,
+        playerId: player.id,
+        status,
+        respondedAt: new Date().toISOString(),
+        source: 'player',
+        registeredByUserId: currentUser.id,
+        registeredByName: currentUser.name,
+      };
+      await saveEntity('matchConfirmations', entity, `respondeu "${status === 'going' ? 'Vou' : status === 'maybe' ? 'Talvez' : 'Não vou'}" à convocação`);
+      const nextQueue = buildConfirmationQueue(
+        nextMatch,
+        data.players,
+        [...data.matchConfirmations.filter((item) => item.id !== entity.id), entity],
+      );
+      setState('idle');
+      if (status === 'going' && nextQueue.waitingPlayerIds.includes(player.id)) {
+        notify('Resposta registrada. Você entrou na fila de espera e será promovido se surgir uma vaga.', 'info');
+      } else if (status === 'going') {
+        notify('Presença confirmada! Sua vaga está garantida.');
+      } else {
+        notify(status === 'maybe' ? 'Resposta “Talvez” registrada.' : 'Ausência informada ao gerenciador.', 'info');
+      }
+    } catch {
+      notify('Não foi possível registrar sua resposta.', 'error');
+    } finally {
+      setResponding(undefined);
+    }
+  };
 
   const persistCheckin = async (latitude?: number, longitude?: number, measuredDistance?: number) => {
     if (!nextMatch || !player) return;
@@ -49,6 +128,15 @@ export function CheckinPage() {
     if (!nextMatch || !venue || !player) return;
     if (existing) {
       setState('success');
+      return;
+    }
+    if (!checkinAllowed) {
+      notify(
+        isConfirmationWaitlisted
+          ? 'Você ainda está na fila de espera. Aguarde a liberação de uma vaga.'
+          : 'Confirme “Vou” e garanta uma vaga antes de fazer check-in.',
+        'error',
+      );
       return;
     }
     if (!nextMatch.requiresGeolocation) {
@@ -98,10 +186,69 @@ export function CheckinPage() {
       : undefined;
   const waitingForDraw = Boolean(player && drawLineup?.waitingPlayerIds.includes(player.id));
   const checkinPosition = player ? drawLineup?.checkinPositionByPlayerId.get(player.id) : undefined;
+  const confirmationPosition = player ? confirmationQueue?.positionByPlayerId.get(player.id) : undefined;
+  const confirmationLocked = deadlinePassed || nextMatch.status !== 'scheduled' || Boolean(existing);
 
   return (
     <>
-      <PageHeader eyebrow="PRESENÇA" title="Check-in da partida" description="Confirme que você chegou ao local do jogo." />
+      <PageHeader eyebrow="PRESENÇA" title="Sua participação" description="Responda à convocação e, no dia do jogo, confirme que chegou ao local." />
+      {nextMatch.requiresConfirmation && (
+        <section className="attendance-response-card">
+          <div className="attendance-response-card__copy">
+            <span className="attendance-response-card__icon"><UserCheck size={23} /></span>
+            <div>
+              <span className="eyebrow">CONVOCAÇÃO</span>
+              <h2>Você vai jogar?</h2>
+              <p>
+                {nextMatch.confirmationDeadline
+                  ? `${deadlinePassed ? 'O prazo terminou em' : 'Responda até'} ${formatLongDate(nextMatch.confirmationDeadline)}.`
+                  : 'Informe sua disponibilidade para ajudar na organização.'}
+              </p>
+            </div>
+          </div>
+          <div className="attendance-response-card__status">
+            {hasConfirmedSpot ? (
+              <Badge tone="success" dot>Vaga confirmada{confirmationPosition ? ` · #${confirmationPosition}` : ''}</Badge>
+            ) : isConfirmationWaitlisted ? (
+              <Badge tone="warning" dot>Fila de espera{confirmationPosition ? ` · #${confirmationPosition}` : ''}</Badge>
+            ) : confirmation?.status === 'maybe' ? (
+              <Badge tone="blue" dot>Você respondeu “Talvez”</Badge>
+            ) : confirmation?.status === 'declined' ? (
+              <Badge tone="danger" dot>Você informou que não vai</Badge>
+            ) : (
+              <Badge tone="neutral" dot>Resposta pendente</Badge>
+            )}
+            {isConfirmationWaitlisted && <small>Você será promovido automaticamente quando uma vaga for liberada.</small>}
+          </div>
+          <div className="attendance-response-actions">
+            <button
+              type="button"
+              className={confirmation?.status === 'going' ? 'active active--going' : ''}
+              disabled={confirmationLocked || Boolean(responding)}
+              onClick={() => saveAttendance('going')}
+            >
+              <Check size={18} /><span><strong>Vou</strong><small>Quero uma vaga</small></span>
+            </button>
+            <button
+              type="button"
+              className={confirmation?.status === 'maybe' ? 'active active--maybe' : ''}
+              disabled={confirmationLocked || Boolean(responding)}
+              onClick={() => saveAttendance('maybe')}
+            >
+              <CircleHelp size={18} /><span><strong>Talvez</strong><small>Ainda não sei</small></span>
+            </button>
+            <button
+              type="button"
+              className={confirmation?.status === 'declined' ? 'active active--declined' : ''}
+              disabled={confirmationLocked || Boolean(responding)}
+              onClick={() => saveAttendance('declined')}
+            >
+              <X size={18} /><span><strong>Não vou</strong><small>Liberar minha vaga</small></span>
+            </button>
+          </div>
+          {confirmationLocked && !existing && <p className="attendance-response-card__locked"><Clock3 size={15} /> O prazo terminou. O gerenciador ainda pode atualizar sua resposta.</p>}
+        </section>
+      )}
       <div className="checkin-layout">
         <section className="checkin-card">
           <div className="checkin-card__visual">
@@ -128,6 +275,19 @@ export function CheckinPage() {
                     : `Seu check-in foi validado${distance ? ` a ${Math.round(distance)} metros do ponto central` : ''}.`}
                 </p>
                 <Badge tone={drawTeamName ? 'success' : 'warning'}><ShieldCheck size={14} /> {drawTeamName || (waitingForDraw ? 'Fila de espera' : 'Presença registrada')}</Badge>
+              </div>
+            ) : !checkinAllowed ? (
+              <div className="checkin-message">
+                <span><Hourglass size={25} /></span>
+                <h2>{isConfirmationWaitlisted ? 'Aguardando uma vaga' : 'Confirme sua participação'}</h2>
+                <p>
+                  {isConfirmationWaitlisted
+                    ? 'Seu nome está na fila de espera. Quando alguém desistir, sua vaga será liberada automaticamente.'
+                    : 'O check-in será liberado depois que você responder “Vou” e estiver dentro do limite de vagas.'}
+                </p>
+                <Badge tone={isConfirmationWaitlisted ? 'warning' : 'neutral'}>
+                  {isConfirmationWaitlisted ? `Posição geral #${confirmationPosition || '—'}` : 'Check-in bloqueado'}
+                </Badge>
               </div>
             ) : state === 'outside' ? (
               <div className="checkin-message checkin-message--error">
@@ -159,6 +319,7 @@ export function CheckinPage() {
             <h3>Detalhes do check-in</h3>
             <div><span><MapPin size={17} /></span><p><small>Local</small><strong>{venue.name}</strong></p></div>
             <div><span><Clock3 size={17} /></span><p><small>Início</small><strong>{formatLongDate(nextMatch.startsAt)}</strong></p></div>
+            {nextMatch.requiresConfirmation && <div><span><UserCheck size={17} /></span><p><small>Sua convocação</small><strong>{hasConfirmedSpot ? 'Vaga confirmada' : isConfirmationWaitlisted ? 'Fila de espera' : confirmation?.status === 'maybe' ? 'Talvez' : confirmation?.status === 'declined' ? 'Não vai' : 'Pendente'}</strong></p></div>}
             <div><span><Wifi size={17} /></span><p><small>Raio autorizado</small><strong>{venue.checkinRadius} metros</strong></p></div>
           </section>
           <p className="privacy-note"><ShieldCheck size={15} /> Sua localização é usada somente para validar este check-in.</p>

@@ -8,12 +8,13 @@ import {
   Sparkles,
   Trophy,
   UserCog,
+  UserCheck,
   UsersRound,
 } from 'lucide-react';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, PageHeader, SectionHeader, StatCard, TeamMark } from '../components/UI';
 import { useApp } from '../context/AppContext';
-import { formatMatchDate, getMatchTeams, getPlayerStats, matchIncludesPlayer, playerDisplayName, timeAgo } from '../lib/utils';
+import { buildConfirmationQueue, formatMatchDate, getMatchTeams, getPlayerStats, matchIncludesPlayer, playerDisplayName, timeAgo } from '../lib/utils';
 import { useNavigate } from '../lib/router';
 
 export function Dashboard() {
@@ -32,6 +33,9 @@ function ManagerDashboard() {
   const matches = data.matches.filter((match) => match.organizationId === orgId);
   const upcoming = matches.filter((match) => match.status === 'scheduled').sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt));
   const recent = matches.filter((match) => match.status === 'finished').sort((a, b) => +new Date(b.startsAt) - +new Date(a.startsAt));
+  const pendingConfirmations = upcoming
+    .filter((match) => match.requiresConfirmation)
+    .reduce((total, match) => total + buildConfirmationQueue(match, players, data.matchConfirmations).pendingPlayerIds.length, 0);
   const ranking = getPlayerStats(players, matches).sort((a, b) => b.goals - a.goals || b.assists - a.assists).slice(0, 4);
   const activeLeague = data.leagues.find((league) => league.organizationId === orgId && league.status === 'active');
 
@@ -45,7 +49,7 @@ function ManagerDashboard() {
       />
 
       <div className="stat-grid">
-        <StatCard label="Partidas" value={matches.length} hint={`${upcoming.length} agendadas`} icon={CalendarDays} />
+        <StatCard label="Partidas" value={matches.length} hint={`${upcoming.length} agendadas · ${pendingConfirmations} sem resposta`} icon={CalendarDays} />
         <StatCard label="Jogadores" value={players.length} hint={`${players.filter((player) => player.status === 'active').length} ativos`} icon={UsersRound} tone="blue" />
         <StatCard label="Equipes" value={teams.length} hint="na organização" icon={ShieldCheck} tone="purple" />
         <StatCard label="Liga ativa" value={activeLeague ? '01' : '—'} hint={activeLeague?.name || 'Nenhuma no momento'} icon={Trophy} tone="orange" />
@@ -122,6 +126,9 @@ function PlayerDashboard() {
     .filter((match) => match.status === 'scheduled' && matchIncludesPlayer(match, player))
     .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt));
   const next = relevantMatches[0];
+  const confirmationQueue = next ? buildConfirmationQueue(next, data.players, data.matchConfirmations) : null;
+  const hasConfirmedSpot = Boolean(player && confirmationQueue?.confirmedPlayerIds.includes(player.id));
+  const nextActionLabel = next?.requiresConfirmation && !hasConfirmedSpot ? 'Responder convocação' : 'Fazer check-in';
   const stats = getPlayerStats(data.players, data.matches).find((item) => item.id === player?.id);
 
   return (
@@ -130,14 +137,14 @@ function PlayerDashboard() {
         eyebrow="ÁREA DO JOGADOR"
         title={`Fala, ${playerDisplayName(player)}!`}
         description="Sua próxima partida e seus números estão logo aqui."
-        action={next ? <Button icon={MapPin} onClick={() => navigate('/check-in')}>Fazer check-in</Button> : undefined}
+        action={next ? <Button icon={next?.requiresConfirmation && !hasConfirmedSpot ? UserCheck : MapPin} onClick={() => navigate('/check-in')}>{nextActionLabel}</Button> : undefined}
       />
       <div className="player-hero">
         <div className="player-hero__copy">
           <span className="eyebrow"><Sparkles size={14} /> PRÓXIMO DESAFIO</span>
           <h2>{next ? formatMatchDate(next.startsAt) : 'Agenda livre'}</h2>
           <p>{next ? 'Confirme sua presença e chegue pronto para jogar.' : 'Seu gerenciador ainda não agendou uma nova partida.'}</p>
-          {next && <Button icon={CheckCircle2} onClick={() => navigate('/check-in')}>Confirmar presença</Button>}
+          {next && <Button icon={next?.requiresConfirmation && !hasConfirmedSpot ? UserCheck : CheckCircle2} onClick={() => navigate('/check-in')}>{nextActionLabel}</Button>}
         </div>
         {next && <div className="player-hero__match"><MatchCard match={next} teams={data.teams} venues={data.venues} compact /></div>}
       </div>

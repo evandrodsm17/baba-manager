@@ -144,6 +144,39 @@ service cloud.firestore {
         );
     }
 
+    function validConfirmationParticipant(data) {
+      let matchData = get(/databases/$(database)/documents/matches/$(data.matchId)).data;
+      let playerData = get(/databases/$(database)/documents/players/$(data.playerId)).data;
+      return exists(/databases/$(database)/documents/matches/$(data.matchId))
+        && exists(/databases/$(database)/documents/players/$(data.playerId))
+        && matchData.organizationId == data.organizationId
+        && playerData.organizationId == data.organizationId
+        && (
+          (
+            matchData.get('matchType', 'teams') == 'draw'
+            && data.playerId in matchData.get('selectedPlayerIds', [])
+          )
+          ||
+          (
+            matchData.get('matchType', 'teams') == 'teams'
+            && (
+              playerData.teamId == matchData.homeTeamId
+              || playerData.teamId == matchData.awayTeamId
+            )
+          )
+        );
+    }
+
+    function validPlayerCheckinConfirmation(data) {
+      let matchData = get(/databases/$(database)/documents/matches/$(data.matchId)).data;
+      let confirmationId = data.matchId + '-' + data.playerId;
+      return matchData.get('requiresConfirmation', false) != true
+        || (
+          exists(/databases/$(database)/documents/matchConfirmations/$(confirmationId))
+          && get(/databases/$(database)/documents/matchConfirmations/$(confirmationId)).data.status == 'going'
+        );
+    }
+
     match /users/{userId} {
       allow read: if isMaster() || (signedIn() && request.auth.uid == userId);
 
@@ -241,6 +274,7 @@ service cloud.firestore {
             (
               isPlayer()
               && request.resource.data.playerId == profile().playerId
+              && validPlayerCheckinConfirmation(request.resource.data)
             )
             ||
             (
@@ -259,6 +293,49 @@ service cloud.firestore {
           && request.resource.data.matchId == resource.data.matchId
           && request.resource.data.playerId == resource.data.playerId
         );
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /matchConfirmations/{confirmationId} {
+      allow read: if isMaster() || sameOrganization(resource.data);
+
+      allow create: if validConfirmationParticipant(request.resource.data)
+        && request.resource.data.status in ['going', 'maybe', 'declined']
+        && get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.status == 'scheduled'
+        && (
+          (
+            isPlayer()
+            && request.resource.data.playerId == profile().playerId
+            && request.resource.data.source == 'player'
+          )
+          ||
+          (
+            isManager()
+            && sameOrganization(request.resource.data)
+            && request.resource.data.source == 'manager'
+          )
+        );
+
+      allow update: if validConfirmationParticipant(request.resource.data)
+        && get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.status == 'scheduled'
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.matchId == resource.data.matchId
+        && request.resource.data.playerId == resource.data.playerId
+        && request.resource.data.status in ['going', 'maybe', 'declined']
+        && (
+          (
+            isPlayer()
+            && resource.data.playerId == profile().playerId
+            && request.resource.data.source == 'player'
+          )
+          ||
+          (
+            isManager()
+            && sameOrganization(request.resource.data)
+            && request.resource.data.source == 'manager'
+          )
+        );
+
       allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
     }
 

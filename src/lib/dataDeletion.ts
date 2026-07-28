@@ -13,6 +13,7 @@ export type DeletableDataKey =
 type PersistedDataKey =
   | DeletableDataKey
   | 'checkins'
+  | 'matchConfirmations'
   | 'statSubmissions';
 
 export interface DeletedDocument {
@@ -42,6 +43,7 @@ const persistedKeys: PersistedDataKey[] = [
   'leagues',
   'matches',
   'checkins',
+  'matchConfirmations',
   'statSubmissions',
   'financialSettings',
   'financialCharges',
@@ -57,6 +59,7 @@ function cloneContent(data: AppData): AppData {
     leagues: [...data.leagues],
     matches: [...data.matches],
     checkins: [...data.checkins],
+    matchConfirmations: [...data.matchConfirmations],
     statSubmissions: [...data.statSubmissions],
     financialSettings: [...data.financialSettings],
     financialCharges: [...data.financialCharges],
@@ -68,6 +71,7 @@ function deleteMatches(next: AppData, matchIds: Set<string>) {
   if (!matchIds.size) return;
   next.matches = next.matches.filter((match) => !matchIds.has(match.id));
   next.checkins = next.checkins.filter((checkin) => !matchIds.has(checkin.matchId));
+  next.matchConfirmations = next.matchConfirmations.filter((confirmation) => !matchIds.has(confirmation.matchId));
   next.statSubmissions = next.statSubmissions.filter((submission) => !matchIds.has(submission.matchId));
 }
 
@@ -79,6 +83,7 @@ function deletePlayers(next: AppData, playerIds: Set<string>) {
     playerIds: team.playerIds.filter((playerId) => !playerIds.has(playerId)),
   }));
   next.checkins = next.checkins.filter((checkin) => !playerIds.has(checkin.playerId));
+  next.matchConfirmations = next.matchConfirmations.filter((confirmation) => !playerIds.has(confirmation.playerId));
   next.statSubmissions = next.statSubmissions.filter((submission) => !playerIds.has(submission.playerId));
   next.financialCharges = next.financialCharges.filter((charge) => !playerIds.has(charge.playerId));
   next.matches = next.matches.map((match) => ({

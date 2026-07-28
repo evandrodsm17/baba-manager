@@ -96,7 +96,7 @@ export function Login() {
               </button>
               <button type="button" onClick={() => chooseDemo('player')}>
                 <span><UsersRound size={19} /></span>
-                <div><strong>Jogador</strong><small>Check-in, agenda e ranking</small></div>
+                <div><strong>Jogador</strong><small>Convocação, check-in e ranking</small></div>
               </button>
               <button type="button" onClick={() => chooseDemo('master')}>
                 <span><BarChart3 size={19} /></span>

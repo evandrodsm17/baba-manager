@@ -89,13 +89,15 @@ export const demoData: AppData = {
     { id: 'm2', organizationId: org, leagueId: 'l1', venueId: 'v2', homeTeamId: 't3', awayTeamId: 't4', startsAt: new Date(Date.now() + 3 * 86400000).toISOString(), status: 'scheduled', requiresGeolocation: false, events: [] },
     {
       id: 'm5', organizationId: org, venueId: 'v2', homeTeamId: 'm5-green', awayTeamId: 'm5-black', matchType: 'draw',
-      selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9'],
+      selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9', 'p10'],
       homePlayerIds: [], awayPlayerIds: [], waitingPlayerIds: [],
-      drawOrder: ['p5', 'p4', 'p9', 'p1', 'p8', 'p6', 'p2', 'p3'], maxPlayersPerTeam: 3,
+      drawOrder: ['p5', 'p4', 'p9', 'p1', 'p8', 'p6', 'p2', 'p3', 'p10'], maxPlayersPerTeam: 3,
       homeTeamName: 'Coletes Limão', awayTeamName: 'Coletes Laranja',
       homeTeamColor: '#b7f52e', awayTeamColor: '#ff7a2f',
       drawnAt: new Date().toISOString(), startsAt: new Date(Date.now() + 12 * 3600000).toISOString(),
-      status: 'scheduled', requiresGeolocation: false, events: [], notes: 'Times definidos por sorteio entre os participantes.',
+      status: 'scheduled', requiresGeolocation: false, requiresConfirmation: true,
+      confirmationDeadline: new Date(Date.now() + 8 * 3600000).toISOString(), confirmationLimit: 6,
+      events: [], notes: 'Times definidos por sorteio entre os participantes.',
     },
     {
       id: 'm3', organizationId: org, leagueId: 'l1', venueId: 'v3', homeTeamId: 't1', awayTeamId: 't3',
@@ -123,13 +125,21 @@ export const demoData: AppData = {
   checkins: [
     { id: 'c1', organizationId: org, matchId: 'm3', playerId: 'p1', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 42, validated: true },
     { id: 'c2', organizationId: org, matchId: 'm3', playerId: 'p2', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 88, validated: true },
-    { id: 'c-m5-1', organizationId: org, matchId: 'm5', playerId: 'p3', checkedAt: new Date(Date.now() - 42 * 60000).toISOString(), validated: true },
     { id: 'c-m5-2', organizationId: org, matchId: 'm5', playerId: 'p1', checkedAt: new Date(Date.now() - 39 * 60000).toISOString(), validated: true },
     { id: 'c-m5-3', organizationId: org, matchId: 'm5', playerId: 'p4', checkedAt: new Date(Date.now() - 35 * 60000).toISOString(), validated: true },
     { id: 'c-m5-4', organizationId: org, matchId: 'm5', playerId: 'p2', checkedAt: new Date(Date.now() - 30 * 60000).toISOString(), validated: true },
     { id: 'c-m5-5', organizationId: org, matchId: 'm5', playerId: 'p8', checkedAt: new Date(Date.now() - 24 * 60000).toISOString(), validated: true },
     { id: 'c-m5-6', organizationId: org, matchId: 'm5', playerId: 'p5', checkedAt: new Date(Date.now() - 18 * 60000).toISOString(), validated: true },
-    { id: 'c-m5-7', organizationId: org, matchId: 'm5', playerId: 'p6', checkedAt: new Date(Date.now() - 12 * 60000).toISOString(), validated: true },
+  ],
+  matchConfirmations: [
+    { id: 'm5-p1', organizationId: org, matchId: 'm5', playerId: 'p1', status: 'going', respondedAt: new Date(Date.now() - 9 * 3600000).toISOString(), source: 'player' },
+    { id: 'm5-p2', organizationId: org, matchId: 'm5', playerId: 'p2', status: 'going', respondedAt: new Date(Date.now() - 8 * 3600000).toISOString(), source: 'player' },
+    { id: 'm5-p4', organizationId: org, matchId: 'm5', playerId: 'p4', status: 'going', respondedAt: new Date(Date.now() - 7 * 3600000).toISOString(), source: 'player' },
+    { id: 'm5-p5', organizationId: org, matchId: 'm5', playerId: 'p5', status: 'going', respondedAt: new Date(Date.now() - 6 * 3600000).toISOString(), source: 'player' },
+    { id: 'm5-p8', organizationId: org, matchId: 'm5', playerId: 'p8', status: 'going', respondedAt: new Date(Date.now() - 5 * 3600000).toISOString(), source: 'manager', registeredByName: 'Rafael Torres' },
+    { id: 'm5-p9', organizationId: org, matchId: 'm5', playerId: 'p9', status: 'going', respondedAt: new Date(Date.now() - 4 * 3600000).toISOString(), source: 'player' },
+    { id: 'm5-p3', organizationId: org, matchId: 'm5', playerId: 'p3', status: 'going', respondedAt: new Date(Date.now() - 10 * 3600000).toISOString(), source: 'player' },
+    { id: 'm5-p6', organizationId: org, matchId: 'm5', playerId: 'p6', status: 'declined', respondedAt: new Date(Date.now() - 3 * 3600000).toISOString(), source: 'player' },
   ],
   statSubmissions: [
     {

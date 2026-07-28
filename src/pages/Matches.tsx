@@ -21,11 +21,13 @@ import {
 import { FaTshirt } from 'react-icons/fa';
 import { PiSoccerBallFill } from 'react-icons/pi';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { AttendanceManager } from '../components/AttendanceManager';
 import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import {
+  buildConfirmationQueue,
   buildDrawLineup,
   formatLongDate,
   getMatchTeams,
@@ -36,7 +38,7 @@ import {
   shufflePlayerIds,
 } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
-import type { Checkin, EventType, Match, MatchEvent, MatchType, StatSubmission } from '../types';
+import type { Checkin, EventType, Match, MatchConfirmation, MatchEvent, MatchType, StatSubmission } from '../types';
 
 export function Matches() {
   const params = useParams();
@@ -58,6 +60,10 @@ function MatchesList() {
   const [drawAwayName, setDrawAwayName] = useState('Time Preto');
   const [drawHomeColor, setDrawHomeColor] = useState('#b7f52e');
   const [drawAwayColor, setDrawAwayColor] = useState('#5f7567');
+  const [startsAt, setStartsAt] = useState('');
+  const [requiresConfirmation, setRequiresConfirmation] = useState(true);
+  const [confirmationDeadline, setConfirmationDeadline] = useState('');
+  const [confirmationDeadlineTouched, setConfirmationDeadlineTouched] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
@@ -96,6 +102,10 @@ function MatchesList() {
     setDrawAwayName('Time Preto');
     setDrawHomeColor('#b7f52e');
     setDrawAwayColor('#5f7567');
+    setStartsAt('');
+    setRequiresConfirmation(true);
+    setConfirmationDeadline('');
+    setConfirmationDeadlineTouched(false);
     setScheduleError('');
     setModalOpen(true);
   };
@@ -127,6 +137,14 @@ function MatchesList() {
       setScheduleError('Informe ao menos um jogador por equipe.');
       return;
     }
+    if (requiresConfirmation && !confirmationDeadline) {
+      setScheduleError('Defina até quando os jogadores poderão confirmar presença.');
+      return;
+    }
+    if (requiresConfirmation && +new Date(confirmationDeadline) >= +new Date(startsAt)) {
+      setScheduleError('O prazo de confirmação precisa terminar antes do início da partida.');
+      return;
+    }
     const venue = data.venues.find((item) => item.id === form.get('venueId'));
     const leagueId = matchType === 'teams' ? String(form.get('leagueId') || '') || undefined : undefined;
     const matchId = createId('match');
@@ -155,6 +173,11 @@ function MatchesList() {
       startsAt: new Date(String(form.get('startsAt'))).toISOString(),
       status: 'scheduled',
       requiresGeolocation: form.get('requiresGeolocation') === 'on' || Boolean(venue?.requiresGeolocation),
+      requiresConfirmation,
+      ...(requiresConfirmation ? {
+        confirmationDeadline: new Date(confirmationDeadline).toISOString(),
+        ...(matchType === 'draw' ? { confirmationLimit: maxPlayersPerTeam * 2 } : {}),
+      } : {}),
       events: [],
       notes: String(form.get('notes') || '').trim() || undefined,
     };
@@ -168,7 +191,9 @@ function MatchesList() {
         }
       }
     }
-    notify(matchType === 'draw' ? 'Baba agendado. Os check-ins definirão quem joga primeiro.' : 'Partida agendada com sucesso.');
+    notify(matchType === 'draw'
+      ? 'Baba agendado. As confirmações definem as vagas e os check-ins definem quem joga primeiro.'
+      : 'Partida agendada e convocação aberta.');
     setModalOpen(false);
   };
 
@@ -206,7 +231,7 @@ function MatchesList() {
               <Trophy size={21} /><span><strong>Equipes fixas</strong><small>Confronto tradicional, amistoso ou por uma liga.</small></span>
             </button>
             <button type="button" className={matchType === 'draw' ? 'active' : ''} onClick={() => { setMatchType('draw'); setScheduleError(''); }}>
-              <Shuffle size={21} /><span><strong>Times sorteados</strong><small>O check-in define a prioridade e o sorteio distribui quem estiver dentro do limite.</small></span>
+              <Shuffle size={21} /><span><strong>Times sorteados</strong><small>As confirmações definem as vagas; o check-in ordena e o sorteio distribui os jogadores.</small></span>
             </button>
           </div>
           <div className={`form-tip ${!canSchedule || scheduleError ? 'form-tip--warning' : ''}`}>
@@ -298,8 +323,63 @@ function MatchesList() {
             </fieldset>
           )}
           <div className="form-row form-row--2">
-            <label><span>Data e horário</span><input name="startsAt" type="datetime-local" required /></label>
+            <label>
+              <span>Data e horário</span>
+              <input
+                name="startsAt"
+                type="datetime-local"
+                required
+                value={startsAt}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStartsAt(value);
+                  if (!confirmationDeadlineTouched && value) {
+                    const deadline = new Date(value);
+                    deadline.setHours(deadline.getHours() - 6);
+                    const timezoneOffset = deadline.getTimezoneOffset() * 60000;
+                    setConfirmationDeadline(new Date(deadline.getTime() - timezoneOffset).toISOString().slice(0, 16));
+                  }
+                  setScheduleError('');
+                }}
+              />
+            </label>
             <label><span>Local</span><select name="venueId" required defaultValue=""><option value="">Selecione o campo</option>{venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
+          </div>
+          <div className={`confirmation-config ${requiresConfirmation ? 'confirmation-config--active' : ''}`}>
+            <label className="toggle-field">
+              <input
+                type="checkbox"
+                checked={requiresConfirmation}
+                onChange={(event) => {
+                  setRequiresConfirmation(event.target.checked);
+                  setScheduleError('');
+                }}
+              />
+              <i />
+              <span><strong>Solicitar confirmação antecipada</strong><small>Os jogadores respondem antes de liberar o check-in.</small></span>
+            </label>
+            {requiresConfirmation && (
+              <div className="confirmation-config__details">
+                <label>
+                  <span>Prazo para responder</span>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={confirmationDeadline}
+                    max={startsAt || undefined}
+                    onChange={(event) => {
+                      setConfirmationDeadline(event.target.value);
+                      setConfirmationDeadlineTouched(true);
+                      setScheduleError('');
+                    }}
+                  />
+                </label>
+                <p>
+                  <strong>{matchType === 'draw' ? `${maxPlayersPerTeam * 2} vagas confirmadas` : 'Convocação dos dois elencos'}</strong>
+                  <small>{matchType === 'draw' ? 'Excedentes entram na fila; convidados ficam depois dos demais.' : 'Todos os jogadores das duas equipes poderão responder.'}</small>
+                </p>
+              </div>
+            )}
           </div>
           {matchType === 'teams' && <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>}
           <label className="toggle-field"><input type="checkbox" name="requiresGeolocation" /><i /><span><strong>Exigir geolocalização no check-in</strong><small>O jogador deverá estar dentro do raio definido no local.</small></span></label>
@@ -334,8 +414,16 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const [baseHome, baseAway] = getMatchTeams(match, data.teams);
   const venue = data.venues.find((item) => item.id === match.venueId);
   const league = data.leagues.find((item) => item.id === match.leagueId);
-  const checkedIn = data.checkins.filter((checkin) => checkin.matchId === match.id && checkin.validated);
-  const drawLineup = isDrawMatch(match) ? buildDrawLineup(match, data.players, checkedIn) : null;
+  const confirmationQueue = buildConfirmationQueue(match, data.players, data.matchConfirmations);
+  const confirmedSpotIds = new Set(confirmationQueue.confirmedPlayerIds);
+  const checkedIn = data.checkins.filter((checkin) => (
+    checkin.matchId === match.id
+    && checkin.validated
+    && (!match.requiresConfirmation || confirmedSpotIds.has(checkin.playerId))
+  ));
+  const drawLineup = isDrawMatch(match)
+    ? buildDrawLineup(match, data.players, checkedIn, data.matchConfirmations)
+    : null;
   const hasPersistedDrawLineup = isDrawMatch(match)
     && match.status !== 'scheduled'
     && Boolean(match.homePlayerIds?.length && match.awayPlayerIds?.length);
@@ -396,6 +484,40 @@ function MatchDetails({ matchId }: { matchId: string }) {
     if (!player || !eligible) {
       notify('Este jogador não faz parte da partida.', 'error');
       return;
+    }
+    if (match.requiresConfirmation) {
+      const currentConfirmation = data.matchConfirmations.find((item) => (
+        item.matchId === match.id && item.playerId === player.id
+      ));
+      const managerConfirmation: MatchConfirmation = {
+        id: currentConfirmation?.id || `${match.id}-${player.id}`,
+        organizationId: match.organizationId,
+        matchId: match.id,
+        playerId: player.id,
+        status: 'going',
+        respondedAt: currentConfirmation?.status === 'going'
+          ? currentConfirmation.respondedAt
+          : new Date().toISOString(),
+        source: 'manager',
+        registeredByUserId: currentUser.id,
+        registeredByName: currentUser.name,
+      };
+      const nextConfirmations = [
+        ...data.matchConfirmations.filter((item) => item.id !== managerConfirmation.id),
+        managerConfirmation,
+      ];
+      const confirmationQueue = buildConfirmationQueue(match, data.players, nextConfirmations);
+      if (currentConfirmation?.status !== 'going') {
+        await saveEntity(
+          'matchConfirmations',
+          managerConfirmation,
+          `confirmou a presença de ${playerDisplayName(player)}`,
+        );
+      }
+      if (confirmationQueue.waitingPlayerIds.includes(player.id)) {
+        notify(`A presença de ${playerDisplayName(player)} foi registrada, mas o jogador está na fila de espera. Libere uma vaga antes do check-in.`, 'info');
+        return;
+      }
     }
     const existingCheckin = data.checkins.find((item) => item.matchId === match.id && item.playerId === player.id);
     if (existingCheckin?.validated) {
@@ -734,6 +856,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
             }) : <EmptyState title="Súmula vazia" description="Os eventos registrados durante a partida aparecerão aqui." />}
           </div>
         </section>
+        {canManage && <AttendanceManager match={match} />}
         <section className="panel match-rosters">
           <div className="section-header">
             <div><h2>Jogadores e check-in</h2><p>{isDrawMatch(match) ? 'Prioridade por ordem de check-in, com convidados depois dos demais' : 'Presença dos elencos nesta partida'}</p></div>
@@ -1047,6 +1170,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
         title="Excluir esta partida?"
         description={`${home.name} × ${away.name} em ${formatLongDate(match.startsAt)} será removida definitivamente.`}
         consequences={[
+          `${data.matchConfirmations.filter((confirmation) => confirmation.matchId === match.id).length} confirmação${data.matchConfirmations.filter((confirmation) => confirmation.matchId === match.id).length === 1 ? '' : 'ões'} de presença serão excluídas`,
           `${data.checkins.filter((checkin) => checkin.matchId === match.id).length} check-in${data.checkins.filter((checkin) => checkin.matchId === match.id).length === 1 ? '' : 's'} serão excluídos`,
           `${match.events.length} evento${match.events.length === 1 ? '' : 's'} da súmula deixarão de contar no placar e nas estatísticas`,
           `${data.statSubmissions.filter((submission) => submission.matchId === match.id).length} envio${data.statSubmissions.filter((submission) => submission.matchId === match.id).length === 1 ? '' : 's'} de jogadores serão removidos`,
