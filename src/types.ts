@@ -112,6 +112,9 @@ export interface Match {
   selectedPlayerIds?: string[];
   homePlayerIds?: string[];
   awayPlayerIds?: string[];
+  waitingPlayerIds?: string[];
+  drawOrder?: string[];
+  maxPlayersPerTeam?: number;
   drawnAt?: string;
   startsAt: string;
   status: MatchStatus;

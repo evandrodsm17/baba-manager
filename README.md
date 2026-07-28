@@ -389,7 +389,7 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 4. Cadastre um local.
 5. Cadastre jogadores.
 6. Crie uma liga e, se desejar, informe a URL de uma imagem de capa. Uma liga existente pode ser atualizada com **Editar liga**.
-7. Agende uma partida entre equipes fixas ou escolha **Times sorteados**, selecione os participantes e deixe o sistema formar os dois lados.
+7. Agende uma partida entre equipes fixas ou escolha **Times sorteados**, informe o limite por equipe e selecione ao menos dois goleiros entre os participantes.
 8. Abra a partida e adicione os gols como eventos da súmula; autor e assistência são opcionais.
 9. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
 10. Edite ou remova eventos enquanto a partida estiver aberta e confira o placar calculado.
@@ -398,7 +398,9 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 
 Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google.
 
-No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os times Verde e Preto existem somente naquela partida. Enquanto ela estiver agendada, o gerenciador pode usar **Sortear novamente**; depois que a súmula começar, a composição fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
+No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os times Verde e Preto existem somente naquela partida. A primeira formação respeita a ordem dos check-ins validados, mas convidados ficam depois dos demais jogadores confirmados. O sistema reserva um goleiro para cada equipe e somente forma os times depois que dois jogadores da posição fizerem check-in. Quem ultrapassar o limite de vagas fica visível na fila de espera.
+
+Enquanto a partida estiver agendada, o gerenciador pode usar **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
 
 Em **Jogadores**, o campo **Tipo de participação** permite identificar opcionalmente mensalistas e convidados. Essa classificação também aparece na seleção do sorteio e pode ser usada como filtro na listagem.
 

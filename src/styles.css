@@ -7096,7 +7096,7 @@ img {
   font-weight: 750;
 }
 
-.draw-player-picker > div {
+.draw-player-options {
   max-height: 294px;
   padding: 4px;
   display: grid;
@@ -7105,7 +7105,7 @@ img {
   overflow-y: auto;
 }
 
-.draw-player-picker > div > label {
+.draw-player-options > label {
   min-width: 0;
   min-height: 62px;
   padding: 10px;
@@ -7119,42 +7119,42 @@ img {
   cursor: pointer;
 }
 
-.draw-player-picker > div > label.selected {
+.draw-player-options > label.selected {
   border-color: #7dab38;
   background: #172d1d;
 }
 
-.draw-player-picker input {
+.draw-player-options input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
 
-.draw-player-picker label > span {
+.draw-player-options label > span {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 
-.draw-player-picker label strong,
-.draw-player-picker label small {
+.draw-player-options label strong,
+.draw-player-options label small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.draw-player-picker label strong {
+.draw-player-options label strong {
   color: #e9f3ec;
   font-size: 13px;
 }
 
-.draw-player-picker label small {
+.draw-player-options label small {
   color: #91a399;
   font-size: 11px;
 }
 
-.draw-player-picker label > i {
+.draw-player-options label > i {
   width: 22px;
   height: 22px;
   display: grid;
@@ -7165,7 +7165,7 @@ img {
   font-style: normal;
 }
 
-.draw-player-picker label.selected > i {
+.draw-player-options label.selected > i {
   color: #10200f;
   border-color: #b7f52e;
   background: #b7f52e;
@@ -7180,9 +7180,163 @@ img {
   font-size: 13px;
 }
 
+.draw-capacity-field {
+  margin-top: 12px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #35523e;
+  border-radius: 12px;
+  background: #102419;
+}
+
+.draw-capacity-field > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #dce9df;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.draw-capacity-field input {
+  width: 74px;
+  min-height: 40px;
+  padding-inline: 9px;
+  color: #edf7f0;
+  border: 1px solid #4c6a54;
+  border-radius: 8px;
+  background: #091a10;
+  font-size: 14px;
+}
+
+.draw-capacity-field > p {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.draw-capacity-field > p strong {
+  color: #c8f663;
+  font-size: 13px;
+}
+
+.draw-capacity-field > p small {
+  color: #98aaa0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-lineup-warning {
+  margin: 0 16px 14px;
+  padding: 13px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  color: #ffc96d;
+  border: 1px solid #67501d;
+  border-radius: 11px;
+  background: #332813;
+}
+
+.draw-lineup-warning strong {
+  color: #ffe0a0;
+  font-size: 13px;
+}
+
+.draw-lineup-warning p {
+  margin-top: 3px;
+  color: #d9bf89;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-waiting-list {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #294333;
+}
+
+.draw-waiting-list > header {
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.draw-waiting-list > header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.draw-waiting-list > header strong {
+  color: #e7f2e9;
+  font-size: 13px;
+}
+
+.draw-waiting-list > header small,
+.draw-waiting-list > p,
+.draw-waiting-list__pending {
+  color: #8fa198;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-waiting-list > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.draw-waiting-list article {
+  min-width: 0;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #2d4837;
+  border-radius: 10px;
+  background: #0d2015;
+}
+
+.draw-waiting-list article > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.draw-waiting-list article strong,
+.draw-waiting-list article small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draw-waiting-list article strong {
+  color: #e4efe7;
+  font-size: 12px;
+}
+
+.draw-waiting-list article small {
+  color: #8fa198;
+  font-size: 10px;
+}
+
+.draw-waiting-list__pending {
+  margin-top: 9px;
+  display: block;
+}
+
 @media (max-width: 620px) {
   .match-type-selector,
-  .draw-player-picker > div {
+  .draw-player-options,
+  .draw-waiting-list > div {
     grid-template-columns: 1fr;
   }
 
@@ -7194,6 +7348,14 @@ img {
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .draw-capacity-field {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-capacity-field > label {
+    justify-content: space-between;
   }
 }
 

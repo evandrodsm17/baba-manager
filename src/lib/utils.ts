@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { League, Match, MatchEvent, Player, Team } from '../types';
+import type { Checkin, League, Match, MatchEvent, Player, Team } from '../types';
 
 export interface Standing {
   teamId: string;
@@ -86,15 +86,115 @@ export function getPlayerMatchTeamId(match: Match, playerId: string) {
   return undefined;
 }
 
-export function drawPlayerTeams(playerIds: string[]) {
+export function shufflePlayerIds(playerIds: string[]) {
   const shuffled = [...playerIds];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const randomIndex = Math.floor(Math.random() * (index + 1));
     [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
   }
+  return shuffled;
+}
+
+export function drawPlayerTeams(playerIds: string[]) {
+  const shuffled = shufflePlayerIds(playerIds);
   return {
     homePlayerIds: shuffled.filter((_, index) => index % 2 === 0),
     awayPlayerIds: shuffled.filter((_, index) => index % 2 === 1),
+  };
+}
+
+export interface DrawLineup {
+  homePlayerIds: string[];
+  awayPlayerIds: string[];
+  waitingPlayerIds: string[];
+  pendingCheckinPlayerIds: string[];
+  lineupReady: boolean;
+  checkedInGoalkeepers: number;
+  maxPlayersPerTeam: number;
+  checkinPositionByPlayerId: Map<string, number>;
+}
+
+export function buildDrawLineup(match: Match, players: Player[], checkins: Checkin[]): DrawLineup {
+  const selectedIds = match.selectedPlayerIds || [];
+  const maxPlayersPerTeam = Math.max(1, match.maxPlayersPerTeam || Math.ceil(selectedIds.length / 2) || 1);
+  const playerMap = new Map(players.map((player) => [player.id, player]));
+  const earliestCheckin = new Map<string, Checkin>();
+
+  checkins
+    .filter((checkin) => checkin.matchId === match.id && checkin.validated && selectedIds.includes(checkin.playerId))
+    .forEach((checkin) => {
+      const current = earliestCheckin.get(checkin.playerId);
+      if (!current || checkin.checkedAt < current.checkedAt) earliestCheckin.set(checkin.playerId, checkin);
+    });
+
+  const chronologicalIds = [...earliestCheckin.values()]
+    .sort((a, b) => a.checkedAt.localeCompare(b.checkedAt))
+    .map((checkin) => checkin.playerId);
+  const checkinPositionByPlayerId = new Map(chronologicalIds.map((playerId, index) => [playerId, index + 1]));
+
+  const priorityPlayers = chronologicalIds
+    .map((playerId) => playerMap.get(playerId))
+    .filter((player): player is Player => Boolean(player))
+    .sort((a, b) => (
+      Number(a.membershipType === 'guest') - Number(b.membershipType === 'guest')
+      || (earliestCheckin.get(a.id)?.checkedAt || '').localeCompare(earliestCheckin.get(b.id)?.checkedAt || '')
+    ));
+  const goalkeepers = priorityPlayers.filter((player) => player.positions.some((position) => position.toLocaleLowerCase('pt-BR') === 'goleiro'));
+  const pendingCheckinPlayerIds = selectedIds.filter((playerId) => !earliestCheckin.has(playerId));
+
+  if (goalkeepers.length < 2) {
+    return {
+      homePlayerIds: [],
+      awayPlayerIds: [],
+      waitingPlayerIds: priorityPlayers.map((player) => player.id),
+      pendingCheckinPlayerIds,
+      lineupReady: false,
+      checkedInGoalkeepers: goalkeepers.length,
+      maxPlayersPerTeam,
+      checkinPositionByPlayerId,
+    };
+  }
+
+  const fixedGoalkeepers = goalkeepers.slice(0, 2);
+  const capacity = maxPlayersPerTeam * 2;
+  const remainingPriority = priorityPlayers.filter((player) => !fixedGoalkeepers.some((goalkeeper) => goalkeeper.id === player.id));
+  const playingIds = [
+    ...fixedGoalkeepers.map((player) => player.id),
+    ...remainingPriority.slice(0, Math.max(0, capacity - 2)).map((player) => player.id),
+  ];
+  const playingSet = new Set(playingIds);
+  const waitingPlayerIds = priorityPlayers.filter((player) => !playingSet.has(player.id)).map((player) => player.id);
+  const drawOrder = [
+    ...(match.drawOrder || []),
+    ...selectedIds.filter((playerId) => !match.drawOrder?.includes(playerId)),
+  ];
+  const goalkeeperOrder = drawOrder.filter((playerId) => fixedGoalkeepers.some((player) => player.id === playerId));
+  const [homeGoalkeeper, awayGoalkeeper] = goalkeeperOrder.length === 2
+    ? goalkeeperOrder
+    : fixedGoalkeepers.map((player) => player.id);
+  const homePlayerIds = [homeGoalkeeper];
+  const awayPlayerIds = [awayGoalkeeper];
+  const remainingDraw = [
+    ...drawOrder.filter((playerId) => playingSet.has(playerId) && playerId !== homeGoalkeeper && playerId !== awayGoalkeeper),
+    ...playingIds.filter((playerId) => !drawOrder.includes(playerId) && playerId !== homeGoalkeeper && playerId !== awayGoalkeeper),
+  ];
+
+  remainingDraw.forEach((playerId) => {
+    if (homePlayerIds.length >= maxPlayersPerTeam) awayPlayerIds.push(playerId);
+    else if (awayPlayerIds.length >= maxPlayersPerTeam) homePlayerIds.push(playerId);
+    else if (homePlayerIds.length <= awayPlayerIds.length) homePlayerIds.push(playerId);
+    else awayPlayerIds.push(playerId);
+  });
+
+  return {
+    homePlayerIds,
+    awayPlayerIds,
+    waitingPlayerIds,
+    pendingCheckinPlayerIds,
+    lineupReady: true,
+    checkedInGoalkeepers: goalkeepers.length,
+    maxPlayersPerTeam,
+    checkinPositionByPlayerId,
   };
 }
 

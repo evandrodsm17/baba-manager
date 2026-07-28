@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Trophy,
   UsersRound,
-  RectangleVertical,
   Footprints,
 } from 'lucide-react';
 import { PiSoccerBallFill } from "react-icons/pi";

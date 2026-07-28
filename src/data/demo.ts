@@ -90,7 +90,8 @@ export const demoData: AppData = {
     {
       id: 'm5', organizationId: org, venueId: 'v2', homeTeamId: 'm5-green', awayTeamId: 'm5-black', matchType: 'draw',
       selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9'],
-      homePlayerIds: ['p1', 'p3', 'p5', 'p8'], awayPlayerIds: ['p2', 'p4', 'p6', 'p9'],
+      homePlayerIds: [], awayPlayerIds: [], waitingPlayerIds: [],
+      drawOrder: ['p5', 'p4', 'p9', 'p1', 'p8', 'p6', 'p2', 'p3'], maxPlayersPerTeam: 3,
       drawnAt: new Date().toISOString(), startsAt: new Date(Date.now() + 12 * 3600000).toISOString(),
       status: 'scheduled', requiresGeolocation: false, events: [], notes: 'Times definidos por sorteio entre os participantes.',
     },
@@ -120,6 +121,13 @@ export const demoData: AppData = {
   checkins: [
     { id: 'c1', organizationId: org, matchId: 'm3', playerId: 'p1', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 42, validated: true },
     { id: 'c2', organizationId: org, matchId: 'm3', playerId: 'p2', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 88, validated: true },
+    { id: 'c-m5-1', organizationId: org, matchId: 'm5', playerId: 'p3', checkedAt: new Date(Date.now() - 42 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-2', organizationId: org, matchId: 'm5', playerId: 'p1', checkedAt: new Date(Date.now() - 39 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-3', organizationId: org, matchId: 'm5', playerId: 'p4', checkedAt: new Date(Date.now() - 35 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-4', organizationId: org, matchId: 'm5', playerId: 'p2', checkedAt: new Date(Date.now() - 30 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-5', organizationId: org, matchId: 'm5', playerId: 'p8', checkedAt: new Date(Date.now() - 24 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-6', organizationId: org, matchId: 'm5', playerId: 'p5', checkedAt: new Date(Date.now() - 18 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-7', organizationId: org, matchId: 'm5', playerId: 'p6', checkedAt: new Date(Date.now() - 12 * 60000).toISOString(), validated: true },
   ],
   statSubmissions: [
     {

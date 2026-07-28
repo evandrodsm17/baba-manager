@@ -15,24 +15,22 @@ import {
   Trash2,
   Trophy,
   UsersRound,
-  Volleyball,
   X,
 } from 'lucide-react';
 import { PiSoccerBallFill } from "react-icons/pi";
-import { TbRectangleVerticalFilled } from "react-icons/tb";
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import {
-  drawPlayerTeams,
+  buildDrawLineup,
   formatLongDate,
   getMatchTeams,
-  getPlayerMatchTeamId,
   isDrawMatch,
   matchIncludesPlayer,
   playerDisplayName,
   scoreFromEvents,
+  shufflePlayerIds,
 } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
 import type { EventType, Match, MatchEvent, MatchType, StatSubmission } from '../types';
@@ -52,6 +50,7 @@ function MatchesList() {
   const [homeTeamId, setHomeTeamId] = useState('');
   const [awayTeamId, setAwayTeamId] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(5);
   const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
@@ -61,7 +60,15 @@ function MatchesList() {
     .filter((player) => player.organizationId === orgId && player.status === 'active')
     .sort((a, b) => a.name.localeCompare(b.name));
   const venues = data.venues.filter((venue) => venue.organizationId === orgId);
-  const canSchedule = venues.length > 0 && (matchType === 'draw' ? selectedPlayerIds.length >= 2 : teams.length >= 2);
+  const selectedGoalkeeperCount = availablePlayers.filter((player) => (
+    selectedPlayerIds.includes(player.id)
+    && player.positions.some((position) => position.toLocaleLowerCase('pt-BR') === 'goleiro')
+  )).length;
+  const canSchedule = venues.length > 0 && (
+    matchType === 'draw'
+      ? selectedPlayerIds.length >= 2 && selectedGoalkeeperCount >= 2 && maxPlayersPerTeam >= 1
+      : teams.length >= 2
+  );
   const matches = useMemo(() => data.matches
     .filter((match) => match.organizationId === orgId)
     .filter((match) => canManage || !activePlayer || matchIncludesPlayer(match, activePlayer))
@@ -77,6 +84,7 @@ function MatchesList() {
     setHomeTeamId('');
     setAwayTeamId('');
     setSelectedPlayerIds([]);
+    setMaxPlayersPerTeam(5);
     setScheduleError('');
     setModalOpen(true);
   };
@@ -100,10 +108,18 @@ function MatchesList() {
       setScheduleError('Selecione pelo menos dois jogadores para realizar o sorteio.');
       return;
     }
+    if (matchType === 'draw' && selectedGoalkeeperCount < 2) {
+      setScheduleError('Selecione pelo menos dois jogadores que atuem como goleiro, um para cada equipe.');
+      return;
+    }
+    if (matchType === 'draw' && maxPlayersPerTeam < 1) {
+      setScheduleError('Informe ao menos um jogador por equipe.');
+      return;
+    }
     const venue = data.venues.find((item) => item.id === form.get('venueId'));
     const leagueId = matchType === 'teams' ? String(form.get('leagueId') || '') || undefined : undefined;
     const matchId = createId('match');
-    const drawnTeams = matchType === 'draw' ? drawPlayerTeams(selectedPlayerIds) : undefined;
+    const drawOrder = matchType === 'draw' ? shufflePlayerIds(selectedPlayerIds) : undefined;
     const entity: Match = {
       id: matchId,
       organizationId: orgId || '',
@@ -114,8 +130,11 @@ function MatchesList() {
       matchType,
       ...(matchType === 'draw' ? {
         selectedPlayerIds,
-        homePlayerIds: drawnTeams?.homePlayerIds,
-        awayPlayerIds: drawnTeams?.awayPlayerIds,
+        homePlayerIds: [],
+        awayPlayerIds: [],
+        waitingPlayerIds: [],
+        drawOrder,
+        maxPlayersPerTeam,
         drawnAt: new Date().toISOString(),
       } : {}),
       startsAt: new Date(String(form.get('startsAt'))).toISOString(),
@@ -134,7 +153,7 @@ function MatchesList() {
         }
       }
     }
-    notify(matchType === 'draw' ? 'Baba agendado e times sorteados.' : 'Partida agendada com sucesso.');
+    notify(matchType === 'draw' ? 'Baba agendado. Os check-ins definirão quem joga primeiro.' : 'Partida agendada com sucesso.');
     setModalOpen(false);
   };
 
@@ -172,7 +191,7 @@ function MatchesList() {
               <Trophy size={21} /><span><strong>Equipes fixas</strong><small>Confronto tradicional, amistoso ou por uma liga.</small></span>
             </button>
             <button type="button" className={matchType === 'draw' ? 'active' : ''} onClick={() => { setMatchType('draw'); setScheduleError(''); }}>
-              <Shuffle size={21} /><span><strong>Times sorteados</strong><small>Selecione jogadores de qualquer equipe e sorteie na hora.</small></span>
+              <Shuffle size={21} /><span><strong>Times sorteados</strong><small>O check-in define a prioridade e o sorteio distribui quem estiver dentro do limite.</small></span>
             </button>
           </div>
           <div className={`form-tip ${!canSchedule || scheduleError ? 'form-tip--warning' : ''}`}>
@@ -183,6 +202,8 @@ function MatchesList() {
                   ? 'Falta cadastrar um local'
                   : matchType === 'draw' && selectedPlayerIds.length < 2
                     ? 'Selecione os participantes'
+                    : matchType === 'draw' && selectedGoalkeeperCount < 2
+                      ? 'Faltam goleiros'
                     : matchType === 'teams' && teams.length < 2
                   ? 'Falta cadastrar outra equipe'
                     : scheduleError ? 'Não foi possível agendar' : matchType === 'draw' ? 'Sorteio por partida' : 'Regra do confronto'}
@@ -192,7 +213,9 @@ function MatchesList() {
                   ? 'Toda partida precisa estar associada a um campo ou quadra.'
                   : scheduleError
                     || (matchType === 'draw'
-                      ? `${selectedPlayerIds.length} selecionado${selectedPlayerIds.length === 1 ? '' : 's'}. É necessário escolher pelo menos dois jogadores ativos.`
+                      ? selectedGoalkeeperCount < 2
+                        ? `${selectedGoalkeeperCount} goleiro${selectedGoalkeeperCount === 1 ? '' : 's'} selecionado${selectedGoalkeeperCount === 1 ? '' : 's'}. Cada equipe precisa ter ao menos um goleiro.`
+                        : `${selectedPlayerIds.length} selecionados · ${selectedGoalkeeperCount} goleiros · até ${maxPlayersPerTeam} jogadores por equipe.`
                       : teams.length < 2
                         ? `Você possui ${teams.length} equipe cadastrada. Uma partida exige duas equipes diferentes.`
                         : 'Uma equipe não pode enfrentar ela própria; escolha mandante e visitante diferentes.')}
@@ -208,7 +231,7 @@ function MatchesList() {
           ) : (
             <fieldset className="draw-player-picker">
               <legend><span>Jogadores participantes</span><button type="button" onClick={() => setSelectedPlayerIds(availablePlayers.length > 0 && selectedPlayerIds.length === availablePlayers.length ? [] : availablePlayers.map((player) => player.id))}>{availablePlayers.length > 0 && selectedPlayerIds.length === availablePlayers.length ? 'Limpar seleção' : 'Selecionar todos'}</button></legend>
-              <div>
+              <div className="draw-player-options">
                 {availablePlayers.map((player) => {
                   const team = teams.find((item) => item.id === player.teamId);
                   const selected = selectedPlayerIds.includes(player.id);
@@ -220,13 +243,31 @@ function MatchesList() {
                         onChange={() => setSelectedPlayerIds((current) => current.includes(player.id) ? current.filter((id) => id !== player.id) : [...current, player.id])}
                       />
                       <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
-                      <span><strong>{playerDisplayName(player)}</strong><small>{player.membershipType === 'subscriber' ? 'Mensalista' : player.membershipType === 'guest' ? 'Convidado' : 'Sem classificação'} · {team?.shortName || 'Sem equipe'}</small></span>
+                      <span><strong>{playerDisplayName(player)}</strong><small>{player.membershipType === 'subscriber' ? 'Mensalista' : player.membershipType === 'guest' ? 'Convidado' : 'Sem classificação'} · {player.positions.join('/')} · {team?.shortName || 'Sem equipe'}</small></span>
                       <i><Check size={14} /></i>
                     </label>
                   );
                 })}
               </div>
               {!availablePlayers.length && <p>Nenhum jogador ativo disponível nesta organização.</p>}
+              <div className="draw-capacity-field">
+                <label>
+                  <span>Máximo de jogadores por equipe</span>
+                  <input
+                    name="maxPlayersPerTeam"
+                    type="number"
+                    min="1"
+                    max="30"
+                    required
+                    value={maxPlayersPerTeam}
+                    onChange={(event) => {
+                      setMaxPlayersPerTeam(Number(event.target.value));
+                      setScheduleError('');
+                    }}
+                  />
+                </label>
+                <p><strong>{maxPlayersPerTeam * 2} vagas na primeira partida</strong><small>Quem exceder o limite ficará na fila. Convidados entram somente depois dos demais jogadores confirmados.</small></p>
+              </div>
             </fieldset>
           )}
           <div className="form-row form-row--2">
@@ -236,7 +277,7 @@ function MatchesList() {
           {matchType === 'teams' && <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>}
           <label className="toggle-field"><input type="checkbox" name="requiresGeolocation" /><i /><span><strong>Exigir geolocalização no check-in</strong><small>O jogador deverá estar dentro do raio definido no local.</small></span></label>
           <label><span>Observações <small>(opcional)</small></span><textarea name="notes" rows={3} placeholder="Informações adicionais para os jogadores..." /></label>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={matchType === 'draw' ? Shuffle : CalendarDays} disabled={!canSchedule}>{matchType === 'draw' ? 'Sortear e agendar' : 'Agendar partida'}</Button></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={matchType === 'draw' ? Shuffle : CalendarDays} disabled={!canSchedule}>{matchType === 'draw' ? 'Agendar sorteio' : 'Agendar partida'}</Button></div>
         </form>
       </Modal>
     </>
@@ -258,21 +299,41 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const canManage = currentUser?.role === 'manager';
 
   if (!match) return <EmptyState title="Partida não encontrada" description="Este confronto não existe ou você não possui acesso." action={<Button onClick={() => navigate('/partidas')}>Voltar</Button>} />;
-  const [home, away] = getMatchTeams(match, data.teams);
+  const [baseHome, baseAway] = getMatchTeams(match, data.teams);
   const venue = data.venues.find((item) => item.id === match.venueId);
   const league = data.leagues.find((item) => item.id === match.leagueId);
   const checkedIn = data.checkins.filter((checkin) => checkin.matchId === match.id && checkin.validated);
+  const drawLineup = isDrawMatch(match) ? buildDrawLineup(match, data.players, checkedIn) : null;
+  const hasPersistedDrawLineup = isDrawMatch(match)
+    && match.status !== 'scheduled'
+    && Boolean(match.homePlayerIds?.length && match.awayPlayerIds?.length);
+  const effectiveHomePlayerIds = isDrawMatch(match)
+    ? hasPersistedDrawLineup ? match.homePlayerIds || [] : drawLineup?.homePlayerIds || []
+    : [];
+  const effectiveAwayPlayerIds = isDrawMatch(match)
+    ? hasPersistedDrawLineup ? match.awayPlayerIds || [] : drawLineup?.awayPlayerIds || []
+    : [];
+  const effectiveWaitingPlayerIds = isDrawMatch(match)
+    ? hasPersistedDrawLineup ? match.waitingPlayerIds || [] : drawLineup?.waitingPlayerIds || []
+    : [];
+  const home = baseHome ? { ...baseHome, playerIds: isDrawMatch(match) ? effectiveHomePlayerIds : baseHome.playerIds } : undefined;
+  const away = baseAway ? { ...baseAway, playerIds: isDrawMatch(match) ? effectiveAwayPlayerIds : baseAway.playerIds } : undefined;
   const homePlayers = data.players
-    .filter((player) => isDrawMatch(match) ? match.homePlayerIds?.includes(player.id) : player.teamId === match.homeTeamId)
+    .filter((player) => isDrawMatch(match) ? effectiveHomePlayerIds.includes(player.id) : player.teamId === match.homeTeamId)
     .sort((a, b) => (a.shirtNumber || 999) - (b.shirtNumber || 999) || a.name.localeCompare(b.name));
   const awayPlayers = data.players
-    .filter((player) => isDrawMatch(match) ? match.awayPlayerIds?.includes(player.id) : player.teamId === match.awayTeamId)
+    .filter((player) => isDrawMatch(match) ? effectiveAwayPlayerIds.includes(player.id) : player.teamId === match.awayTeamId)
     .sort((a, b) => (a.shirtNumber || 999) - (b.shirtNumber || 999) || a.name.localeCompare(b.name));
+  const waitingPlayers = data.players
+    .filter((player) => effectiveWaitingPlayerIds.includes(player.id))
+    .sort((a, b) => effectiveWaitingPlayerIds.indexOf(a.id) - effectiveWaitingPlayerIds.indexOf(b.id));
   const activePlayer = data.players.find((player) => player.id === currentUser?.playerId);
   const playerCanSubmit = currentUser?.role === 'player'
     && match.status === 'finished'
     && Boolean(activePlayer)
-    && matchIncludesPlayer(match, activePlayer);
+    && (isDrawMatch(match)
+      ? Boolean(activePlayer && (effectiveHomePlayerIds.includes(activePlayer.id) || effectiveAwayPlayerIds.includes(activePlayer.id)))
+      : matchIncludesPlayer(match, activePlayer));
   const playerSubmission = data.statSubmissions.find((submission) => (
     submission.matchId === match.id && submission.playerId === activePlayer?.id
   ));
@@ -280,10 +341,19 @@ function MatchDetails({ matchId }: { matchId: string }) {
     submission.matchId === match.id && submission.status === 'pending'
   ));
   if (!home || !away) return null;
+  const drawAssignment = isDrawMatch(match) ? {
+    homePlayerIds: effectiveHomePlayerIds,
+    awayPlayerIds: effectiveAwayPlayerIds,
+    waitingPlayerIds: effectiveWaitingPlayerIds,
+  } : {};
 
   const openEventForm = (item?: MatchEvent) => {
     if (match.status === 'finished') {
       notify('Reabra a partida antes de alterar a súmula.', 'error');
+      return;
+    }
+    if (isDrawMatch(match) && match.status === 'scheduled' && !drawLineup?.lineupReady) {
+      notify('Aguarde o check-in de pelo menos dois goleiros para formar as equipes.', 'error');
       return;
     }
     setEditingEvent(item || null);
@@ -325,6 +395,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
     const score = scoreFromEvents(events, match.homeTeamId, match.awayTeamId);
     await saveEntity('matches', {
       ...match,
+      ...drawAssignment,
       ...score,
       events,
       status: match.status === 'scheduled' ? 'live' : match.status,
@@ -346,8 +417,12 @@ function MatchDetails({ matchId }: { matchId: string }) {
   };
 
   const finalizeMatch = async () => {
+    if (isDrawMatch(match) && match.status === 'scheduled' && !drawLineup?.lineupReady) {
+      notify('Não é possível finalizar: as equipes ainda precisam de dois goleiros confirmados.', 'error');
+      return;
+    }
     const score = scoreFromEvents(match.events, match.homeTeamId, match.awayTeamId);
-    await saveEntity('matches', { ...match, ...score, status: 'finished' }, 'finalizou a partida');
+    await saveEntity('matches', { ...match, ...drawAssignment, ...score, status: 'finished' }, 'finalizou a partida');
     notify('Partida finalizada. A súmula foi bloqueada para edição.');
   };
 
@@ -358,13 +433,12 @@ function MatchDetails({ matchId }: { matchId: string }) {
 
   const redrawTeams = async () => {
     if (!isDrawMatch(match) || match.status !== 'scheduled' || !match.selectedPlayerIds?.length) return;
-    const drawnTeams = drawPlayerTeams(match.selectedPlayerIds);
     await saveEntity('matches', {
       ...match,
-      ...drawnTeams,
+      drawOrder: shufflePlayerIds(match.selectedPlayerIds),
       drawnAt: new Date().toISOString(),
     }, 'refez o sorteio dos times');
-    notify('Times sorteados novamente.');
+    notify('Distribuição entre os times sorteada novamente. A prioridade da fila foi mantida.');
   };
 
   const eventPlayerTeamId = eventType === 'goal' && ownGoal
@@ -372,7 +446,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
     : eventTeam;
   const playerIdsForTeam = (teamId: string) => (
     isDrawMatch(match)
-      ? teamId === match.homeTeamId ? match.homePlayerIds || [] : match.awayPlayerIds || []
+      ? teamId === match.homeTeamId ? effectiveHomePlayerIds : effectiveAwayPlayerIds
       : data.players.filter((player) => player.teamId === teamId).map((player) => player.id)
   );
   const eventPlayers = data.players.filter((player) => playerIdsForTeam(eventPlayerTeamId).includes(player.id));
@@ -393,7 +467,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
       organizationId: match.organizationId,
       matchId: match.id,
       playerId: activePlayer.id,
-      teamId: isDrawMatch(match) ? getPlayerMatchTeamId(match, activePlayer.id) || '' : activePlayer.teamId,
+      teamId: isDrawMatch(match)
+        ? effectiveHomePlayerIds.includes(activePlayer.id) ? match.homeTeamId : effectiveAwayPlayerIds.includes(activePlayer.id) ? match.awayTeamId : ''
+        : activePlayer.teamId,
       goals,
       assists,
       note: String(form.get('note') || '').trim() || undefined,
@@ -469,7 +545,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
               <Button icon={RotateCcw} onClick={reopenMatch}>Reabrir partida</Button>
             ) : (
               <>
-                {isDrawMatch(match) && match.status === 'scheduled' && <Button variant="ghost" icon={Shuffle} onClick={redrawTeams}>Sortear novamente</Button>}
+                {isDrawMatch(match) && match.status === 'scheduled' && <Button variant="ghost" icon={Shuffle} onClick={redrawTeams}>Refazer distribuição</Button>}
                 <Button variant="secondary" icon={Plus} onClick={() => openEventForm()}>Adicionar evento</Button>
                 <Button icon={CheckCircle2} onClick={finalizeMatch}>Finalizar partida</Button>
               </>
@@ -503,7 +579,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
             {match.events.length ? [...match.events].sort((a, b) => a.minute - b.minute).map((item) => {
               const player = data.players.find((entry) => entry.id === item.playerId);
               const assist = data.players.find((entry) => entry.id === item.assistPlayerId);
-              const creditedTeam = data.teams.find((team) => team.id === item.teamId);
+              const creditedTeam = item.teamId === home.id ? home : item.teamId === away.id ? away : data.teams.find((team) => team.id === item.teamId);
               const eventLabel = item.type === 'goal'
                 ? item.ownGoal ? 'Gol contra' : 'Gol'
                 : item.type === 'assist'
@@ -544,9 +620,18 @@ function MatchDetails({ matchId }: { matchId: string }) {
         </section>
         <section className="panel match-rosters">
           <div className="section-header">
-            <div><h2>Jogadores e check-in</h2><p>{isDrawMatch(match) ? 'Times temporários definidos pelo sorteio desta partida' : 'Presença dos elencos nesta partida'}</p></div>
+            <div><h2>Jogadores e check-in</h2><p>{isDrawMatch(match) ? 'Prioridade por ordem de check-in, com convidados depois dos demais' : 'Presença dos elencos nesta partida'}</p></div>
             <Badge tone="lime">{checkedIn.length} confirmado{checkedIn.length === 1 ? '' : 's'}</Badge>
           </div>
+          {isDrawMatch(match) && match.status === 'scheduled' && !drawLineup?.lineupReady && (
+            <div className="draw-lineup-warning">
+              <ShieldAlert size={20} />
+              <div>
+                <strong>Equipes aguardando goleiros</strong>
+                <p>{drawLineup?.checkedInGoalkeepers || 0} de 2 goleiros fizeram check-in. A escalação será formada quando houver um goleiro confirmado para cada time.</p>
+              </div>
+            </div>
+          )}
           <div className="match-rosters__grid">
             {[
               { team: home, players: homePlayers },
@@ -557,7 +642,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
                 <article className="match-roster" key={team.id}>
                   <header>
                     <TeamMark {...team} size="sm" />
-                    <div><strong>{team.name}</strong><small>{confirmed} de {players.length} com check-in</small></div>
+                    <div><strong>{team.name}</strong><small>{isDrawMatch(match) ? `${players.length} de ${drawLineup?.maxPlayersPerTeam || match.maxPlayersPerTeam || players.length} vagas` : `${confirmed} de ${players.length} com check-in`}</small></div>
                   </header>
                   <div className="match-roster__players">
                     {players.length ? players.map((player) => {
@@ -570,18 +655,43 @@ function MatchDetails({ matchId }: { matchId: string }) {
                             <small>{player.membershipType === 'subscriber' ? 'Mensalista · ' : player.membershipType === 'guest' ? 'Convidado · ' : ''}{player.shirtNumber ? `#${player.shirtNumber} · ` : ''}{player.positions.join(', ')}</small>
                           </div>
                           <Badge tone={checkin?.validated ? 'success' : checkin ? 'warning' : 'neutral'} dot>
-                            {checkin?.validated ? 'Confirmado' : checkin ? 'Não validado' : 'Sem check-in'}
+                            {isDrawMatch(match) && checkin?.validated
+                              ? `#${drawLineup?.checkinPositionByPlayerId.get(player.id) || '—'} check-in`
+                              : checkin?.validated ? 'Confirmado' : checkin ? 'Não validado' : 'Sem check-in'}
                           </Badge>
                         </div>
                       );
                     }) : (
-                      <div className="match-roster__empty">Nenhum jogador cadastrado nesta equipe.</div>
+                      <div className="match-roster__empty">{isDrawMatch(match) ? 'Aguardando a fila de check-in e a confirmação dos goleiros.' : 'Nenhum jogador cadastrado nesta equipe.'}</div>
                     )}
                   </div>
                 </article>
               );
             })}
           </div>
+          {isDrawMatch(match) && (
+            <div className="draw-waiting-list">
+              <header>
+                <div><strong>Fila de espera</strong><small>Convidados são posicionados depois dos demais jogadores confirmados.</small></div>
+                <Badge tone="neutral">{waitingPlayers.length} aguardando</Badge>
+              </header>
+              {waitingPlayers.length ? (
+                <div>
+                  {waitingPlayers.map((player) => {
+                    const position = drawLineup?.checkinPositionByPlayerId.get(player.id);
+                    return (
+                      <article key={player.id}>
+                        <Avatar name={player.name} src={player.photoUrl} size="sm" />
+                        <span><strong>{playerDisplayName(player)}</strong><small>{player.membershipType === 'guest' ? 'Convidado · prioridade reduzida' : `Check-in #${position || '—'}`} · {player.positions.join(', ')}</small></span>
+                        <Badge tone={player.membershipType === 'guest' ? 'warning' : 'neutral'}>{player.membershipType === 'guest' ? 'Convidado' : `#${position || '—'}`}</Badge>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : <p>Nenhum jogador confirmado está fora das equipes.</p>}
+              {(drawLineup?.pendingCheckinPlayerIds.length || 0) > 0 && <small className="draw-waiting-list__pending">{drawLineup?.pendingCheckinPlayerIds.length} selecionado{drawLineup?.pendingCheckinPlayerIds.length === 1 ? '' : 's'} ainda não fizeram check-in.</small>}
+            </div>
+          )}
         </section>
         {canManage && pendingSubmissions.length > 0 && (
           <section className="panel stat-review-panel">

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Badge, Button, EmptyState, PageHeader, SuccessSeal } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { formatLongDate, haversineDistance, matchIncludesPlayer } from '../lib/utils';
+import { buildDrawLineup, formatLongDate, haversineDistance, isDrawMatch, matchIncludesPlayer } from '../lib/utils';
 import type { Checkin } from '../types';
 
 type CheckinState = 'idle' | 'locating' | 'success' | 'outside' | 'error';
@@ -18,6 +18,9 @@ export function CheckinPage() {
     .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt))[0];
   const venue = data.venues.find((item) => item.id === nextMatch?.venueId);
   const existing = data.checkins.find((item) => item.matchId === nextMatch?.id && item.playerId === player?.id && item.validated);
+  const drawLineup = nextMatch && isDrawMatch(nextMatch)
+    ? buildDrawLineup(nextMatch, data.players, data.checkins)
+    : null;
 
   const persistCheckin = async (latitude?: number, longitude?: number, measuredDistance?: number) => {
     if (!nextMatch || !player) return;
@@ -84,6 +87,13 @@ export function CheckinPage() {
   }
 
   const successful = state === 'success' || Boolean(existing);
+  const drawTeamName = player && drawLineup?.homePlayerIds.includes(player.id)
+    ? 'Time Verde'
+    : player && drawLineup?.awayPlayerIds.includes(player.id)
+      ? 'Time Preto'
+      : undefined;
+  const waitingForDraw = Boolean(player && drawLineup?.waitingPlayerIds.includes(player.id));
+  const checkinPosition = player ? drawLineup?.checkinPositionByPlayerId.get(player.id) : undefined;
 
   return (
     <>
@@ -101,9 +111,19 @@ export function CheckinPage() {
               <div className="checkin-success">
                 <SuccessSeal />
                 <span className="eyebrow">PRESENÇA CONFIRMADA</span>
-                <h2>Você está no jogo!</h2>
-                <p>Seu check-in foi validado{distance ? ` a ${Math.round(distance)} metros do ponto central` : ''}.</p>
-                <Badge tone="success"><ShieldCheck size={14} /> Localização validada</Badge>
+                <h2>{drawLineup ? drawTeamName ? `Você está no ${drawTeamName}!` : waitingForDraw ? 'Você está na fila de espera' : 'Aguardando os goleiros' : 'Você está no jogo!'}</h2>
+                <p>
+                  {drawLineup
+                    ? drawTeamName
+                      ? `Seu check-in foi o ${checkinPosition || '—'}º. Você entrou na primeira formação.`
+                      : waitingForDraw
+                        ? player.membershipType === 'guest'
+                          ? 'Como convidado, você entra depois dos demais jogadores confirmados e ocupa uma vaga disponível.'
+                          : `Seu check-in foi o ${checkinPosition || '—'}º. Você será chamado quando surgir uma vaga.`
+                        : `A escalação será formada quando dois goleiros fizerem check-in. Sua posição atual é ${checkinPosition || '—'}ª.`
+                    : `Seu check-in foi validado${distance ? ` a ${Math.round(distance)} metros do ponto central` : ''}.`}
+                </p>
+                <Badge tone={drawTeamName ? 'success' : 'warning'}><ShieldCheck size={14} /> {drawTeamName || (waitingForDraw ? 'Fila de espera' : 'Presença registrada')}</Badge>
               </div>
             ) : state === 'outside' ? (
               <div className="checkin-message checkin-message--error">
