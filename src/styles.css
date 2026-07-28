@@ -6021,6 +6021,7 @@ img {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 24px;
+  text-align: center;
 }
 
 .product-nav__inner > a {
@@ -6037,6 +6038,12 @@ img {
   color: #9baca1;
   font-size: 12px;
   font-weight: 700;
+  text-decoration: none;
+  transition: color 160ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 
 .product-nav nav a:hover {

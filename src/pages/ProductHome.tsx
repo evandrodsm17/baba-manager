@@ -12,6 +12,8 @@ import {
   Trophy,
   UsersRound,
   Zap,
+  HelpCircle,
+  Box,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge, Button, Logo } from '../components/UI';
@@ -68,9 +70,9 @@ export function ProductHome() {
         <div className="product-nav__inner">
           <a href="/" aria-label="Página inicial"><Logo /></a>
           <nav>
-            <a href="#como-funciona">Como funciona</a>
-            <a href="#recursos">Recursos</a>
-            <a href="#ligas">Ligas públicas</a>
+            <a href="#como-funciona"><HelpCircle size={16}/>Como funciona</a>
+            <a href="#recursos"><Box size={16}/> Recursos</a>
+            <a href="#ligas"><Trophy size={16}/> Ligas públicas</a>
           </nav>
           <Button icon={currentUser ? ArrowRight : LogIn} onClick={() => navigate(managementPath)}>
             {currentUser ? 'Abrir painel' : 'Entrar'}
