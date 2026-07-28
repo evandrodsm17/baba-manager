@@ -9,6 +9,7 @@ import {
   Menu,
   WalletCards,
   Search,
+  Settings2,
   ShieldCheck,
   Trophy,
   UserCog,
@@ -34,6 +35,7 @@ const navByRole = {
     { to: '/financeiro', label: 'Financeiro', icon: WalletCards },
     { to: '/ligas', label: 'Ligas', icon: Trophy },
     { to: '/locais', label: 'Locais', icon: MapPinned },
+    { to: '/configuracoes', label: 'Configurações', icon: Settings2 },
   ],
   player: [
     { to: '/painel', label: 'Início', icon: LayoutDashboard },

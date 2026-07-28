@@ -11,6 +11,7 @@ import {
   ReceiptText,
   RotateCcw,
   Settings2,
+  Trash2,
   TrendingDown,
   TrendingUp,
   UserRoundCheck,
@@ -18,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import type { FinancialCharge, FinancialExpense, FinancialSettings } from '../types';
@@ -72,7 +74,7 @@ function methodLabel(method?: FinancialCharge['paymentMethod']) {
 }
 
 export function Finance() {
-  const { data, currentUser, saveEntity, notify } = useApp();
+  const { data, currentUser, saveEntity, deleteEntityWithDependencies, notify } = useApp();
   const orgId = currentUser?.organizationId || '';
   const [referenceMonth, setReferenceMonth] = useState(currentReferenceMonth());
   const [tab, setTab] = useState<FinanceTab>('charges');
@@ -80,6 +82,8 @@ export function Finance() {
   const [chargeOpen, setChargeOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<PaymentTarget | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<PaymentTarget | null>(null);
+  const [deleteSettingsOpen, setDeleteSettingsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const settings = data.financialSettings.find((item) => item.organizationId === orgId);
@@ -297,6 +301,7 @@ export function Finance() {
                       {charge.status === 'pending' && <Button icon={Check} onClick={() => setPaymentTarget({ kind: 'charge', entry: charge })}>Receber</Button>}
                       {charge.status === 'paid' && <button type="button" title="Estornar recebimento" onClick={() => reopenEntry({ kind: 'charge', entry: charge })}><RotateCcw size={17} /></button>}
                       {charge.status !== 'cancelled' && <button type="button" title="Cancelar cobrança" onClick={() => cancelEntry({ kind: 'charge', entry: charge })}><X size={17} /></button>}
+                      <button className="danger-action" type="button" title="Excluir cobrança definitivamente" onClick={() => setDeletingEntry({ kind: 'charge', entry: charge })}><Trash2 size={16} /></button>
                     </div>
                   </article>
                 );
@@ -320,6 +325,7 @@ export function Finance() {
                     {expense.status === 'pending' && <Button icon={Check} onClick={() => setPaymentTarget({ kind: 'expense', entry: expense })}>Pagar</Button>}
                     {expense.status === 'paid' && <button type="button" title="Estornar pagamento" onClick={() => reopenEntry({ kind: 'expense', entry: expense })}><RotateCcw size={17} /></button>}
                     {expense.status !== 'cancelled' && <button type="button" title="Cancelar despesa" onClick={() => cancelEntry({ kind: 'expense', entry: expense })}><X size={17} /></button>}
+                    <button className="danger-action" type="button" title="Excluir despesa definitivamente" onClick={() => setDeletingEntry({ kind: 'expense', entry: expense })}><Trash2 size={16} /></button>
                   </div>
                 </article>
               ))}
@@ -336,7 +342,11 @@ export function Finance() {
           </div>
           <label className="toggle-field"><input type="checkbox" name="enabled" defaultChecked={settings?.enabled ?? true} /><i /><span><strong>Controle mensal ativo</strong><small>Permite gerar cobranças para jogadores classificados como mensalistas.</small></span></label>
           <div className="form-tip"><WalletCards size={18} /><p><strong>Sem duplicidade</strong><span>Cada mensalista recebe apenas uma cobrança ativa por competência.</span></p></div>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setSettingsOpen(false)}>Cancelar</Button><Button type="submit" icon={Settings2}>Salvar configuração</Button></div>
+          <div className="form-actions">
+            {settings && <Button type="button" variant="danger" icon={Trash2} onClick={() => setDeleteSettingsOpen(true)}>Excluir configuração</Button>}
+            <Button type="button" variant="ghost" onClick={() => setSettingsOpen(false)}>Cancelar</Button>
+            <Button type="submit" icon={Settings2}>Salvar configuração</Button>
+          </div>
         </form>
       </Modal>
 
@@ -377,6 +387,41 @@ export function Finance() {
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setPaymentTarget(null)}>Cancelar</Button><Button type="submit" icon={Check}>Confirmar</Button></div>
         </form>
       </Modal>
+
+      <DangerConfirmModal
+        open={Boolean(deletingEntry)}
+        onClose={() => setDeletingEntry(null)}
+        title={`Excluir ${deletingEntry?.kind === 'charge' ? 'cobrança' : 'despesa'}?`}
+        description={deletingEntry?.entry.description || 'O lançamento financeiro será removido.'}
+        consequences={[
+          `O valor de ${currency(deletingEntry?.entry.amount || 0)} deixará de compor os totais financeiros`,
+          'O histórico de pagamento, vencimento e observações será apagado',
+          'O jogador e os demais registros financeiros não serão afetados',
+        ]}
+        onConfirm={() => deletingEntry
+          ? deleteEntityWithDependencies(
+            deletingEntry.kind === 'charge' ? 'financialCharges' : 'financialExpenses',
+            deletingEntry.entry.id,
+            deletingEntry.kind === 'charge' ? 'uma cobrança' : 'uma despesa',
+          )
+          : Promise.resolve()}
+      />
+
+      <DangerConfirmModal
+        open={deleteSettingsOpen}
+        onClose={() => setDeleteSettingsOpen(false)}
+        title="Excluir configuração financeira?"
+        description="A mensalidade padrão e o dia de vencimento configurados serão removidos."
+        consequences={[
+          'As cobranças e despesas existentes serão preservadas',
+          'A geração automática de mensalidades ficará indisponível até uma nova configuração',
+        ]}
+        onConfirm={async () => {
+          if (!settings) return;
+          await deleteEntityWithDependencies('financialSettings', settings.id, 'a configuração financeira');
+          setSettingsOpen(false);
+        }}
+      />
     </>
   );
 }

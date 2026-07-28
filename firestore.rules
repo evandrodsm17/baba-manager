@@ -319,7 +319,7 @@ service cloud.firestore {
           && request.resource.data.goals + request.resource.data.assists > 0
         );
 
-      allow delete: if isMaster();
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
     }
 
     match /financialSettings/{documentId} {

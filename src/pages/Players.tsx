@@ -1,5 +1,6 @@
-import { Filter, MoreHorizontal, Plus, Search, Shirt, UserRound, UsersRound } from 'lucide-react';
+import { Filter, MoreHorizontal, Plus, Search, Shirt, Trash2, UserRound, UsersRound } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import { getPlayerStats } from '../lib/utils';
@@ -8,7 +9,7 @@ import type { Player } from '../types';
 const positions = ['Goleiro', 'Zagueiro', 'Lateral', 'Volante', 'Meia', 'Atacante'];
 
 export function Players() {
-  const { data, currentUser, saveEntity, notify } = useApp();
+  const { data, currentUser, saveEntity, deleteEntityWithDependencies, notify } = useApp();
   const canManage = currentUser?.role === 'manager';
   const orgId = currentUser?.organizationId;
   const [search, setSearch] = useState('');
@@ -16,6 +17,7 @@ export function Players() {
   const [membershipFilter, setMembershipFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Player | null>(null);
+  const [deleting, setDeleting] = useState<Player | null>(null);
   const stats = useMemo(() => getPlayerStats(data.players, data.matches), [data.players, data.matches]);
   const players = stats
     .filter((player) => player.organizationId === orgId)
@@ -87,7 +89,10 @@ export function Players() {
                   <strong>{player.goals}</strong>
                   <strong>{player.assists}</strong>
                   <span><Badge tone={player.status === 'active' ? 'success' : player.status === 'suspended' ? 'danger' : 'neutral'} dot>{player.status === 'active' ? 'Ativo' : player.status === 'suspended' ? 'Suspenso' : 'Inativo'}</Badge></span>
-                  <button className="icon-button" type="button" onClick={() => canManage && openForm(player)} disabled={!canManage}><MoreHorizontal size={18} /></button>
+                  <div className="table-row__actions">
+                    <button className="icon-button" type="button" title="Editar jogador" aria-label={`Editar ${player.name}`} onClick={() => canManage && openForm(player)} disabled={!canManage}><MoreHorizontal size={18} /></button>
+                    {canManage && <button className="icon-button icon-button--danger" type="button" title="Excluir jogador" aria-label={`Excluir ${player.name}`} onClick={() => setDeleting(player)}><Trash2 size={17} /></button>}
+                  </div>
                 </div>
               );
             })}
@@ -122,6 +127,29 @@ export function Players() {
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={Shirt}>{editing ? 'Salvar alterações' : 'Adicionar jogador'}</Button></div>
         </form>
       </Modal>
+
+      <DangerConfirmModal
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        title={`Excluir ${deleting?.name || 'jogador'}?`}
+        description="O atleta será removido da organização e deixará de ter acesso como jogador por este cadastro."
+        consequences={[
+          (() => {
+            const count = data.checkins.filter((checkin) => checkin.playerId === deleting?.id).length;
+            return `${count} check-in${count === 1 ? '' : 's'} ${count === 1 ? 'será removido' : 'serão removidos'}`;
+          })(),
+          (() => {
+            const charges = data.financialCharges.filter((charge) => charge.playerId === deleting?.id).length;
+            const submissions = data.statSubmissions.filter((submission) => submission.playerId === deleting?.id).length;
+            return `${charges} cobrança${charges === 1 ? '' : 's'} e ${submissions} envio${submissions === 1 ? '' : 's'} de estatísticas serão removidos`;
+          })(),
+          'Cartões desse jogador serão excluídos; gols serão mantidos sem autor e assistências serão desvinculadas',
+          'O jogador será retirado das escalações e filas de partidas sorteadas',
+        ]}
+        onConfirm={() => deleting
+          ? deleteEntityWithDependencies('players', deleting.id, `o jogador ${deleting.name}`)
+          : Promise.resolve()}
+      />
     </>
   );
 }

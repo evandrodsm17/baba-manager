@@ -1,5 +1,6 @@
-import { Edit3, MoreHorizontal, Plus, Search, Shirt, UsersRound } from 'lucide-react';
+import { Edit3, MoreHorizontal, Plus, Search, Shirt, Trash2, UsersRound } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import type { Team } from '../types';
@@ -7,10 +8,11 @@ import type { Team } from '../types';
 const colors = ['#c8ff32', '#fd6d46', '#79a8ff', '#f7c948', '#b58cff', '#5de2c3'];
 
 export function Teams() {
-  const { data, currentUser, saveEntity, notify } = useApp();
+  const { data, currentUser, saveEntity, deleteEntityWithDependencies, notify } = useApp();
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Team | null>(null);
+  const [deleting, setDeleting] = useState<Team | null>(null);
   const orgId = currentUser?.organizationId;
   const teams = useMemo(() => data.teams
     .filter((team) => team.organizationId === orgId)
@@ -90,7 +92,10 @@ export function Teams() {
                 )}
                 <div className="team-card__footer">
                   {suspended ? <Badge tone="danger" dot>{suspended} suspenso{suspended > 1 ? 's' : ''}</Badge> : <Badge tone="success" dot>Elenco regular</Badge>}
-                  <button type="button" onClick={() => openForm(team)}><Edit3 size={15} /> Editar equipe</button>
+                  <div className="team-card__footer-actions">
+                    <button type="button" onClick={() => openForm(team)}><Edit3 size={15} /> Editar</button>
+                    <button className="danger-action" type="button" onClick={() => setDeleting(team)}><Trash2 size={15} /> Excluir</button>
+                  </div>
                 </div>
               </article>
             );
@@ -120,6 +125,28 @@ export function Teams() {
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit">{editing ? 'Salvar alterações' : 'Criar equipe'}</Button></div>
         </form>
       </Modal>
+
+      <DangerConfirmModal
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        title={`Excluir ${deleting?.name || 'equipe'}?`}
+        description="A equipe e os dados que dependem diretamente dela serão removidos."
+        consequences={[
+          (() => {
+            const count = data.players.filter((player) => player.teamId === deleting?.id).length;
+            return `${count} jogador${count === 1 ? '' : 'es'} do elenco e seus registros financeiros`;
+          })(),
+          (() => {
+            const count = data.matches.filter((match) => match.matchType !== 'draw' && (match.homeTeamId === deleting?.id || match.awayTeamId === deleting?.id)).length;
+            return `${count} partida${count === 1 ? '' : 's'} entre equipes, com check-ins e envios de estatísticas`;
+          })(),
+          'A equipe será retirada das ligas e das páginas públicas',
+          'Partidas sorteadas serão preservadas, mas sem os jogadores excluídos',
+        ]}
+        onConfirm={() => deleting
+          ? deleteEntityWithDependencies('teams', deleting.id, `a equipe ${deleting.name}`)
+          : Promise.resolve()}
+      />
     </>
   );
 }

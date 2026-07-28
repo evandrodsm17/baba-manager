@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { PiSoccerBallFill } from "react-icons/pi";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
@@ -310,12 +311,13 @@ function MatchesList() {
 }
 
 function MatchDetails({ matchId }: { matchId: string }) {
-  const { data, currentUser, saveEntity, notify } = useApp();
+  const { data, currentUser, saveEntity, deleteEntityWithDependencies, notify } = useApp();
   const navigate = useNavigate();
   const match = data.matches.find((item) => item.id === matchId);
   const [eventOpen, setEventOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [teamIdentityOpen, setTeamIdentityOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [identityHomeColor, setIdentityHomeColor] = useState('#b7f52e');
   const [identityAwayColor, setIdentityAwayColor] = useState('#5f7567');
   const [manualCheckinPlayerId, setManualCheckinPlayerId] = useState('');
@@ -653,6 +655,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
         {canManage && (
           <div className="match-detail-hero__actions">
             {isDrawMatch(match) && <Button variant="ghost" icon={Palette} onClick={openTeamIdentity}>Personalizar times</Button>}
+            <Button variant="danger" icon={Trash2} onClick={() => setDeleteOpen(true)}>Excluir partida</Button>
             {match.status === 'finished' ? (
               <Button icon={RotateCcw} onClick={reopenMatch}>Reabrir partida</Button>
             ) : (
@@ -1036,6 +1039,23 @@ function MatchDetails({ matchId }: { matchId: string }) {
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setTeamIdentityOpen(false)}>Cancelar</Button><Button type="submit" icon={Palette}>Salvar identidade</Button></div>
         </form>
       </Modal>
+
+      <DangerConfirmModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Excluir esta partida?"
+        description={`${home.name} × ${away.name} em ${formatLongDate(match.startsAt)} será removida definitivamente.`}
+        consequences={[
+          `${data.checkins.filter((checkin) => checkin.matchId === match.id).length} check-in${data.checkins.filter((checkin) => checkin.matchId === match.id).length === 1 ? '' : 's'} serão excluídos`,
+          `${match.events.length} evento${match.events.length === 1 ? '' : 's'} da súmula deixarão de contar no placar e nas estatísticas`,
+          `${data.statSubmissions.filter((submission) => submission.matchId === match.id).length} envio${data.statSubmissions.filter((submission) => submission.matchId === match.id).length === 1 ? '' : 's'} de jogadores serão removidos`,
+          match.leagueId ? 'Classificação e rankings da liga serão recalculados' : 'As equipes e os jogadores continuarão cadastrados',
+        ]}
+        onConfirm={async () => {
+          await deleteEntityWithDependencies('matches', match.id, 'uma partida');
+          navigate('/partidas');
+        }}
+      />
 
       <Modal open={statsOpen} onClose={() => setStatsOpen(false)} title="Informar suas estatísticas" description="O gerenciador precisará aprovar os números antes de entrarem na súmula.">
         <form className="form" onSubmit={submitStats}>

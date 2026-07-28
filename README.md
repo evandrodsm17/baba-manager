@@ -404,6 +404,8 @@ O gerenciador pode usar **Personalizar times** para corrigir nomes e cores sem a
 
 Se um jogador estiver sem celular ou internet, o gerenciador pode usar **Confirmar check-in** na relação de jogadores da partida. Esse registro manual ignora a exigência de geolocalização, utiliza o horário em que o gerenciador confirmou a presença e fica identificado no sistema para auditoria. Se a escalação do sorteio já estiver fechada, o jogador será incluído na fila de espera sem alterar os times.
 
+O gerenciador também pode excluir individualmente partidas, equipes, jogadores, ligas, locais e lançamentos financeiros. Toda exclusão apresenta primeiro as dependências afetadas e exige que a palavra **EXCLUIR** seja digitada. Em **Configurações → Limpar todos os dados**, a confirmação **LIMPAR TUDO** remove de uma só vez os conteúdos da organização, incluindo check-ins e estatísticas, mas preserva a organização, os acessos dos gerenciadores e o histórico de auditoria.
+
 Em **Jogadores**, o campo **Tipo de participação** permite identificar opcionalmente mensalistas e convidados. Essa classificação também aparece na seleção do sorteio e pode ser usada como filtro na listagem.
 
 ### Módulo financeiro

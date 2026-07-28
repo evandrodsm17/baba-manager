@@ -1,19 +1,21 @@
-import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Plus, ShieldCheck, Sparkles, Trash2, Trophy } from 'lucide-react';
 import { PiSoccerBallFill } from "react-icons/pi";
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import { calculateStandings, getLeagueTeamIds, getPlayerStats, playerDisplayName } from '../lib/utils';
 import type { League } from '../types';
 
 export function Leagues() {
-  const { data, currentUser, saveEntity, notify } = useApp();
+  const { data, currentUser, saveEntity, deleteEntityWithDependencies, notify } = useApp();
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
   const leagues = data.leagues.filter((league) => league.organizationId === orgId);
   const [selectedId, setSelectedId] = useState(leagues.find((league) => league.status === 'active')?.id || leagues[0]?.id);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
+  const [deletingLeague, setDeletingLeague] = useState<League | null>(null);
   const [copying, setCopying] = useState(false);
   const selected = leagues.find((league) => league.id === selectedId);
   const leagueMatches = data.matches.filter((match) => match.leagueId === selected?.id);
@@ -105,6 +107,7 @@ export function Leagues() {
             {selected && (
               <>
                 <Button variant="ghost" icon={Edit3} onClick={() => openLeagueForm(selected)}>Editar liga</Button>
+                <Button variant="danger" icon={Trash2} onClick={() => setDeletingLeague(selected)}>Excluir liga</Button>
                 {selected.isPublic ? (
                   <Button variant="secondary" icon={ExternalLink} onClick={() => window.open(`/liga/${selected.id}`, '_blank', 'noopener,noreferrer')}>Página pública</Button>
                 ) : (
@@ -250,6 +253,25 @@ export function Leagues() {
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => { setModalOpen(false); setEditingLeague(null); }}>Cancelar</Button><Button type="submit" icon={Trophy}>{editingLeague ? 'Salvar alterações' : 'Criar liga'}</Button></div>
         </form>
       </Modal>
+
+      <DangerConfirmModal
+        open={Boolean(deletingLeague)}
+        onClose={() => setDeletingLeague(null)}
+        title={`Excluir ${deletingLeague?.name || 'liga'}?`}
+        description="A competição será removida com todo o histórico registrado dentro dela."
+        consequences={[
+          (() => {
+            const count = data.matches.filter((match) => match.leagueId === deletingLeague?.id).length;
+            return `${count} partida${count === 1 ? '' : 's'}, incluindo súmulas, check-ins e envios de estatísticas`;
+          })(),
+          'Classificação, artilharia, assistências e controle disciplinar deixarão de existir',
+          deletingLeague?.isPublic ? 'A página pública e seus dados serão removidos' : 'Qualquer publicação residual da liga será removida',
+          'Equipes e jogadores continuarão cadastrados na organização',
+        ]}
+        onConfirm={() => deletingLeague
+          ? deleteEntityWithDependencies('leagues', deletingLeague.id, `a liga ${deletingLeague.name}`)
+          : Promise.resolve()}
+      />
     </>
   );
 }

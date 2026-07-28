@@ -20,8 +20,14 @@ import {
   type Query,
 } from 'firebase/firestore';
 import { demoData, demoUsers } from '../data/demo';
+import {
+  planEntityDeletion,
+  planOrganizationCleanup,
+  type DeletableDataKey,
+  type DeletionPlan,
+} from '../lib/dataDeletion';
 import { activateUserAccess, db, isFirebaseConfigured, resolveUserProfile, signInWithGoogle, signOutUser, watchAuth } from '../lib/firebase';
-import { syncPublicLeagueSnapshot } from '../lib/publicLeague';
+import { deletePublicLeagueSnapshot, syncPublicLeagueSnapshot } from '../lib/publicLeague';
 import type { AppData, AuditLog, UserProfile, UserRole } from '../types';
 
 type DataKey = keyof AppData;
@@ -46,6 +52,8 @@ interface AppContextValue {
   logout: () => Promise<void>;
   saveEntity: <K extends DataKey>(key: K, entity: DataEntity<K>, auditMessage?: string) => Promise<void>;
   removeEntity: (key: DataKey, id: string, auditMessage?: string) => Promise<void>;
+  deleteEntityWithDependencies: (key: DeletableDataKey, id: string, label: string) => Promise<number>;
+  clearOrganizationData: () => Promise<number>;
   notify: (message: string, tone?: Toast['tone']) => void;
 }
 
@@ -376,6 +384,93 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (auditMessage) notify(auditMessage);
   }, [currentUser, isDemo, notify]);
 
+  const applyDeletionPlan = useCallback(async (plan: DeletionPlan, auditAction: string) => {
+    if (!currentUser?.organizationId || currentUser.role !== 'manager') {
+      throw new Error('Somente o gerenciador da organização pode excluir estes dados.');
+    }
+
+    if (db && !isDemo) {
+      await Promise.all([
+        ...plan.deletedDocuments.map(({ key, id }) => deleteDoc(doc(db!, key, id))),
+        ...plan.updatedDocuments.map(({ key, id, entity }) => setDoc(
+          doc(db!, key, id),
+          withoutUndefined(entity) as Record<string, unknown>,
+        )),
+      ]);
+    }
+
+    const audit: AuditLog = {
+      id: crypto.randomUUID(),
+      organizationId: currentUser.organizationId,
+      actorName: currentUser.name,
+      action: auditAction,
+      entity: 'BABA MANAGER',
+      createdAt: new Date().toISOString(),
+    };
+    const finalData = {
+      ...plan.nextData,
+      auditLogs: [audit, ...plan.nextData.auditLogs],
+    };
+    dataRef.current = finalData;
+    setData(finalData);
+
+    if (db && !isDemo) {
+      try {
+        await setDoc(doc(db, 'auditLogs', audit.id), audit);
+      } catch (error) {
+        console.error('Falha ao registrar auditoria da exclusão:', error);
+      }
+      try {
+        await Promise.all(plan.deletedLeagueIds.map((leagueId) => deletePublicLeagueSnapshot(db!, leagueId)));
+        await Promise.all(plan.affectedLeagueIds.map((leagueId) => syncPublicLeagueSnapshot(db!, finalData, leagueId)));
+      } catch (error) {
+        console.error('Falha ao limpar as páginas públicas após a exclusão:', error);
+        notify('Os dados foram excluídos, mas alguma página pública pode demorar a atualizar.', 'error');
+      }
+    }
+
+    return plan.removedCount;
+  }, [currentUser, isDemo, notify]);
+
+  const deleteEntityWithDependencies = useCallback(async (
+    key: DeletableDataKey,
+    id: string,
+    label: string,
+  ) => {
+    try {
+      if (!currentUser?.organizationId || currentUser.role !== 'manager') {
+        throw new Error('Somente o gerenciador pode realizar esta exclusão.');
+      }
+      const plan = planEntityDeletion(dataRef.current, key, id, currentUser.organizationId);
+      const removedCount = await applyDeletionPlan(
+        plan,
+        `excluiu ${label} e ${Math.max(0, plan.removedCount - 1)} dependência${plan.removedCount - 1 === 1 ? '' : 's'}`,
+      );
+      notify(`Exclusão concluída: ${removedCount} registro${removedCount === 1 ? '' : 's'} removido${removedCount === 1 ? '' : 's'}.`);
+      return removedCount;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível concluir a exclusão.';
+      notify(message, 'error');
+      throw error;
+    }
+  }, [applyDeletionPlan, currentUser, notify]);
+
+  const clearOrganizationData = useCallback(async () => {
+    try {
+      if (!currentUser?.organizationId || currentUser.role !== 'manager') {
+        throw new Error('Somente o gerenciador pode limpar os dados da organização.');
+      }
+      const plan = planOrganizationCleanup(dataRef.current, currentUser.organizationId);
+      const removedCount = await applyDeletionPlan(plan, `limpou os dados da organização (${plan.removedCount} registros)`);
+      notify(`Organização limpa: ${removedCount} registro${removedCount === 1 ? '' : 's'} removido${removedCount === 1 ? '' : 's'}.`);
+      return removedCount;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível limpar a organização.';
+      notify(message, 'error');
+      throw error;
+    }
+  }, [applyDeletionPlan, currentUser, notify]);
+
   const value = useMemo<AppContextValue>(() => ({
     data,
     currentUser,
@@ -389,8 +484,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     logout,
     saveEntity,
     removeEntity,
+    deleteEntityWithDependencies,
+    clearOrganizationData,
     notify,
-  }), [data, currentUser, authLoading, isDemo, toasts, loginGoogle, enterDemo, switchDemoRole, switchAccess, logout, saveEntity, removeEntity, notify]);
+  }), [data, currentUser, authLoading, isDemo, toasts, loginGoogle, enterDemo, switchDemoRole, switchAccess, logout, saveEntity, removeEntity, deleteEntityWithDependencies, clearOrganizationData, notify]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

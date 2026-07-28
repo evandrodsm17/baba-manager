@@ -1,16 +1,18 @@
-import { Crosshair, Edit3, MapPin, Navigation, Plus, Radio, Ruler } from 'lucide-react';
+import { Crosshair, Edit3, MapPin, Navigation, Plus, Radio, Ruler, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { Badge, Button, EmptyState, Modal, PageHeader } from '../components/UI';
 import { GoogleMapPreview } from '../components/GoogleMapPreview';
 import { createId, useApp } from '../context/AppContext';
 import type { Venue } from '../types';
 
 export function Venues() {
-  const { data, currentUser, saveEntity, notify } = useApp();
+  const { data, currentUser, saveEntity, deleteEntityWithDependencies, notify } = useApp();
   const orgId = currentUser?.organizationId;
   const venues = data.venues.filter((venue) => venue.organizationId === orgId);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Venue | null>(null);
+  const [deleting, setDeleting] = useState<Venue | null>(null);
   const [coordinates, setCoordinates] = useState({ latitude: '', longitude: '' });
   const [locating, setLocating] = useState(false);
 
@@ -70,7 +72,13 @@ export function Venues() {
             <article className="venue-card" key={venue.id}>
               <GoogleMapPreview latitude={venue.latitude} longitude={venue.longitude} label={venue.name} />
               <div className="venue-card__body">
-                <div className="venue-card__title"><div><h2>{venue.name}</h2><p>{venue.address}</p></div><button className="icon-button" type="button" onClick={() => openForm(venue)}><Edit3 size={17} /></button></div>
+                <div className="venue-card__title">
+                  <div><h2>{venue.name}</h2><p>{venue.address}</p></div>
+                  <div className="venue-card__actions">
+                    <button className="icon-button" type="button" title="Editar local" aria-label={`Editar ${venue.name}`} onClick={() => openForm(venue)}><Edit3 size={17} /></button>
+                    <button className="icon-button icon-button--danger" type="button" title="Excluir local" aria-label={`Excluir ${venue.name}`} onClick={() => setDeleting(venue)}><Trash2 size={16} /></button>
+                  </div>
+                </div>
                 <div className="venue-card__meta">
                   <span><Ruler size={16} /><b>{venue.checkinRadius} m</b> de raio</span>
                   {venue.requiresGeolocation ? <Badge tone="lime" dot>Geo obrigatória</Badge> : <Badge tone="neutral">Geo opcional</Badge>}
@@ -106,6 +114,28 @@ export function Venues() {
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={MapPin}>{editing ? 'Salvar alterações' : 'Cadastrar local'}</Button></div>
         </form>
       </Modal>
+
+      <DangerConfirmModal
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        title={`Excluir ${deleting?.name || 'local'}?`}
+        description="Partidas associadas a este campo ou quadra não podem permanecer sem local."
+        consequences={[
+          (() => {
+            const count = data.matches.filter((match) => match.venueId === deleting?.id).length;
+            return `${count} partida${count === 1 ? '' : 's'} ${count === 1 ? 'será excluída' : 'serão excluídas'}`;
+          })(),
+          (() => {
+            const count = data.checkins.filter((checkin) => data.matches.some((match) => match.id === checkin.matchId && match.venueId === deleting?.id)).length;
+            return `${count} check-in${count === 1 ? '' : 's'} vinculado${count === 1 ? '' : 's'} ${count === 1 ? 'será removido' : 'serão removidos'}`;
+          })(),
+          'Súmulas e envios de estatísticas dessas partidas também serão excluídos',
+          'Páginas públicas de ligas afetadas serão atualizadas',
+        ]}
+        onConfirm={() => deleting
+          ? deleteEntityWithDependencies('venues', deleting.id, `o local ${deleting.name}`)
+          : Promise.resolve()}
+      />
     </>
   );
 }

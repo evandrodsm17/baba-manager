@@ -103,6 +103,14 @@ export async function syncPublicLeagueSnapshot(
   ]);
 }
 
+export async function deletePublicLeagueSnapshot(firestore: Firestore, leagueId: string) {
+  const leagueRef = doc(firestore, 'publicLeagues', leagueId);
+  const matchesDocument = await getDocs(collection(leagueRef, 'matches'));
+  await Promise.all(matchesDocument.docs.map((matchDocument) => deleteDoc(matchDocument.ref)));
+  const existing = await getDoc(leagueRef);
+  if (existing.exists()) await deleteDoc(leagueRef);
+}
+
 export async function loadPublicLeagueList(firestore: Firestore) {
   const snapshot = await getDocs(query(
     collection(firestore, 'publicLeagues'),
