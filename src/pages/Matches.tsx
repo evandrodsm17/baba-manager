@@ -18,6 +18,8 @@ import {
   Volleyball,
   X,
 } from 'lucide-react';
+import { PiSoccerBallFill } from "react-icons/pi";
+import { TbRectangleVerticalFilled } from "react-icons/tb";
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
@@ -519,7 +521,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
               return (
                 <div className="timeline__item" key={item.id}>
                   <strong>{item.minute ? `${item.minute}'` : '—'}</strong>
-                  <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? <Volleyball size={20} color="white" /> : ''}</span> 
+                  <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? <PiSoccerBallFill size={20} color="white" /> : ''}</span> 
                   <div>
                     <p><b>{eventLabel}</b> · {subject}</p>
                     {item.type === 'goal' && (
