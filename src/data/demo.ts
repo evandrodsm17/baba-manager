@@ -92,6 +92,8 @@ export const demoData: AppData = {
       selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9'],
       homePlayerIds: [], awayPlayerIds: [], waitingPlayerIds: [],
       drawOrder: ['p5', 'p4', 'p9', 'p1', 'p8', 'p6', 'p2', 'p3'], maxPlayersPerTeam: 3,
+      homeTeamName: 'Coletes Limão', awayTeamName: 'Coletes Laranja',
+      homeTeamColor: '#b7f52e', awayTeamColor: '#ff7a2f',
       drawnAt: new Date().toISOString(), startsAt: new Date(Date.now() + 12 * 3600000).toISOString(),
       status: 'scheduled', requiresGeolocation: false, events: [], notes: 'Times definidos por sorteio entre os participantes.',
     },

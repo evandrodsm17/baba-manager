@@ -115,6 +115,10 @@ export interface Match {
   waitingPlayerIds?: string[];
   drawOrder?: string[];
   maxPlayersPerTeam?: number;
+  homeTeamName?: string;
+  awayTeamName?: string;
+  homeTeamColor?: string;
+  awayTeamColor?: string;
   drawnAt?: string;
   startsAt: string;
   status: MatchStatus;

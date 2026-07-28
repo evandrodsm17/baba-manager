@@ -47,6 +47,11 @@ export function isDrawMatch(match: Match) {
   return match.matchType === 'draw';
 }
 
+function temporaryTeamShortName(name: string, fallback: string) {
+  const normalized = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '');
+  return normalized.slice(0, 3).toUpperCase() || fallback;
+}
+
 export function getMatchTeams(match: Match, teams: Team[]): [Team | undefined, Team | undefined] {
   if (!isDrawMatch(match)) {
     return [
@@ -54,21 +59,23 @@ export function getMatchTeams(match: Match, teams: Team[]): [Team | undefined, T
       teams.find((team) => team.id === match.awayTeamId),
     ];
   }
+  const homeName = match.homeTeamName?.trim() || 'Time Verde';
+  const awayName = match.awayTeamName?.trim() || 'Time Preto';
   return [
     {
       id: match.homeTeamId,
       organizationId: match.organizationId,
-      name: 'Time Verde',
-      shortName: 'VER',
-      color: '#b7f52e',
+      name: homeName,
+      shortName: temporaryTeamShortName(homeName, 'VER'),
+      color: match.homeTeamColor || '#b7f52e',
       playerIds: match.homePlayerIds || [],
     },
     {
       id: match.awayTeamId,
       organizationId: match.organizationId,
-      name: 'Time Preto',
-      shortName: 'PRE',
-      color: '#5f7567',
+      name: awayName,
+      shortName: temporaryTeamShortName(awayName, 'PRE'),
+      color: match.awayTeamColor || '#5f7567',
       playerIds: match.awayPlayerIds || [],
     },
   ];

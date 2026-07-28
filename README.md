@@ -398,9 +398,9 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 
 Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google.
 
-No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os times Verde e Preto existem somente naquela partida. A primeira formação respeita a ordem dos check-ins validados, mas convidados ficam depois dos demais jogadores confirmados. O sistema reserva um goleiro para cada equipe e somente forma os times depois que dois jogadores da posição fizerem check-in. Quem ultrapassar o limite de vagas fica visível na fila de espera.
+No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os dois times existem somente naquela partida e podem receber nomes e cores próprios para representar os coletes utilizados. A primeira formação respeita a ordem dos check-ins validados, mas convidados ficam depois dos demais jogadores confirmados. O sistema reserva um goleiro para cada equipe e somente forma os times depois que dois jogadores da posição fizerem check-in. Quem ultrapassar o limite de vagas fica visível na fila de espera.
 
-Enquanto a partida estiver agendada, o gerenciador pode usar **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
+O gerenciador pode usar **Personalizar times** para corrigir nomes e cores sem alterar a escalação ou a súmula. Enquanto a partida estiver agendada, também pode usar **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
 
 Em **Jogadores**, o campo **Tipo de participação** permite identificar opcionalmente mensalistas e convidados. Essa classificação também aparece na seleção do sorteio e pode ser usada como filtro na listagem.
 

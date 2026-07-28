@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Edit3,
   MapPin,
+  Palette,
   Plus,
   Radio,
   RotateCcw,
@@ -18,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { PiSoccerBallFill } from "react-icons/pi";
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
@@ -51,6 +52,10 @@ function MatchesList() {
   const [awayTeamId, setAwayTeamId] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(5);
+  const [drawHomeName, setDrawHomeName] = useState('Time Verde');
+  const [drawAwayName, setDrawAwayName] = useState('Time Preto');
+  const [drawHomeColor, setDrawHomeColor] = useState('#b7f52e');
+  const [drawAwayColor, setDrawAwayColor] = useState('#5f7567');
   const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
@@ -85,6 +90,10 @@ function MatchesList() {
     setAwayTeamId('');
     setSelectedPlayerIds([]);
     setMaxPlayersPerTeam(5);
+    setDrawHomeName('Time Verde');
+    setDrawAwayName('Time Preto');
+    setDrawHomeColor('#b7f52e');
+    setDrawAwayColor('#5f7567');
     setScheduleError('');
     setModalOpen(true);
   };
@@ -135,6 +144,10 @@ function MatchesList() {
         waitingPlayerIds: [],
         drawOrder,
         maxPlayersPerTeam,
+        homeTeamName: drawHomeName.trim() || 'Time Verde',
+        awayTeamName: drawAwayName.trim() || 'Time Preto',
+        homeTeamColor: drawHomeColor,
+        awayTeamColor: drawAwayColor,
         drawnAt: new Date().toISOString(),
       } : {}),
       startsAt: new Date(String(form.get('startsAt'))).toISOString(),
@@ -250,6 +263,18 @@ function MatchesList() {
                 })}
               </div>
               {!availablePlayers.length && <p>Nenhum jogador ativo disponível nesta organização.</p>}
+              <div className="draw-team-customizer">
+                <article style={{ '--draw-team-color': drawHomeColor } as CSSProperties}>
+                  <span className="draw-team-customizer__vest"><i /><i /></span>
+                  <label><span>Nome do primeiro time</span><input name="drawHomeName" required maxLength={32} value={drawHomeName} onChange={(event) => setDrawHomeName(event.target.value)} /></label>
+                  <label className="draw-team-color"><span>Cor</span><input name="drawHomeColor" type="color" value={drawHomeColor} onChange={(event) => setDrawHomeColor(event.target.value)} /><code>{drawHomeColor.toUpperCase()}</code></label>
+                </article>
+                <article style={{ '--draw-team-color': drawAwayColor } as CSSProperties}>
+                  <span className="draw-team-customizer__vest"><i /><i /></span>
+                  <label><span>Nome do segundo time</span><input name="drawAwayName" required maxLength={32} value={drawAwayName} onChange={(event) => setDrawAwayName(event.target.value)} /></label>
+                  <label className="draw-team-color"><span>Cor</span><input name="drawAwayColor" type="color" value={drawAwayColor} onChange={(event) => setDrawAwayColor(event.target.value)} /><code>{drawAwayColor.toUpperCase()}</code></label>
+                </article>
+              </div>
               <div className="draw-capacity-field">
                 <label>
                   <span>Máximo de jogadores por equipe</span>
@@ -290,6 +315,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const match = data.matches.find((item) => item.id === matchId);
   const [eventOpen, setEventOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [teamIdentityOpen, setTeamIdentityOpen] = useState(false);
+  const [identityHomeColor, setIdentityHomeColor] = useState('#b7f52e');
+  const [identityAwayColor, setIdentityAwayColor] = useState('#5f7567');
   const [editingEvent, setEditingEvent] = useState<MatchEvent | null>(null);
   const [eventType, setEventType] = useState<EventType>('goal');
   const [eventTeam, setEventTeam] = useState('');
@@ -441,6 +469,27 @@ function MatchDetails({ matchId }: { matchId: string }) {
     notify('Distribuição entre os times sorteada novamente. A prioridade da fila foi mantida.');
   };
 
+  const saveTeamIdentity = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!isDrawMatch(match)) return;
+    const form = new FormData(event.currentTarget);
+    await saveEntity('matches', {
+      ...match,
+      homeTeamName: String(form.get('homeTeamName')).trim() || 'Time Verde',
+      awayTeamName: String(form.get('awayTeamName')).trim() || 'Time Preto',
+      homeTeamColor: String(form.get('homeTeamColor') || '#b7f52e'),
+      awayTeamColor: String(form.get('awayTeamColor') || '#5f7567'),
+    }, 'personalizou os times sorteados');
+    notify('Nomes e cores dos times atualizados.');
+    setTeamIdentityOpen(false);
+  };
+
+  const openTeamIdentity = () => {
+    setIdentityHomeColor(match.homeTeamColor || '#b7f52e');
+    setIdentityAwayColor(match.awayTeamColor || '#5f7567');
+    setTeamIdentityOpen(true);
+  };
+
   const eventPlayerTeamId = eventType === 'goal' && ownGoal
     ? eventTeam === home.id ? away.id : home.id
     : eventTeam;
@@ -541,6 +590,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
         </div>
         {canManage && (
           <div className="match-detail-hero__actions">
+            {isDrawMatch(match) && <Button variant="ghost" icon={Palette} onClick={openTeamIdentity}>Personalizar times</Button>}
             {match.status === 'finished' ? (
               <Button icon={RotateCcw} onClick={reopenMatch}>Reabrir partida</Button>
             ) : (
@@ -823,6 +873,25 @@ function MatchDetails({ matchId }: { matchId: string }) {
           <div className="form-tip"><Trophy size={18} /><p><strong>Placar por eventos</strong><span>Todo gol soma um ponto à equipe beneficiada. Autor e assistência podem ficar sem identificação, mas nunca podem ser a mesma pessoa.</span></p></div>
           <div className="form-tip form-tip--warning"><ShieldAlert size={18} /><p><strong>Regra disciplinar</strong><span>Cartões em partidas de liga serão contabilizados para possíveis suspensões.</span></p></div>
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setEventOpen(false)}>Cancelar</Button><Button type="submit">{editingEvent ? 'Salvar alterações' : 'Adicionar à súmula'}</Button></div>
+        </form>
+      </Modal>
+
+      <Modal open={teamIdentityOpen} onClose={() => setTeamIdentityOpen(false)} title="Personalizar times" description="Use os nomes e as cores dos coletes utilizados nesta partida.">
+        <form className="form" onSubmit={saveTeamIdentity}>
+          <div className="draw-team-customizer draw-team-customizer--modal">
+            <article style={{ '--draw-team-color': identityHomeColor } as CSSProperties}>
+              <span className="draw-team-customizer__vest"><i /><i /></span>
+              <label><span>Primeiro time</span><input name="homeTeamName" required maxLength={32} defaultValue={match.homeTeamName || 'Time Verde'} /></label>
+              <label className="draw-team-color"><span>Cor do colete</span><input name="homeTeamColor" type="color" value={identityHomeColor} onChange={(event) => setIdentityHomeColor(event.target.value)} /></label>
+            </article>
+            <article style={{ '--draw-team-color': identityAwayColor } as CSSProperties}>
+              <span className="draw-team-customizer__vest"><i /><i /></span>
+              <label><span>Segundo time</span><input name="awayTeamName" required maxLength={32} defaultValue={match.awayTeamName || 'Time Preto'} /></label>
+              <label className="draw-team-color"><span>Cor do colete</span><input name="awayTeamColor" type="color" value={identityAwayColor} onChange={(event) => setIdentityAwayColor(event.target.value)} /></label>
+            </article>
+          </div>
+          <div className="form-tip"><Palette size={18} /><p><strong>Alteração visual</strong><span>A fila, os jogadores sorteados, o placar e os eventos da súmula não serão modificados.</span></p></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setTeamIdentityOpen(false)}>Cancelar</Button><Button type="submit" icon={Palette}>Salvar identidade</Button></div>
         </form>
       </Modal>
 
