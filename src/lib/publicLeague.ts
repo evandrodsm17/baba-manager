@@ -9,7 +9,7 @@ import {
   where,
   type Firestore,
 } from 'firebase/firestore';
-import { getLeagueTeamIds } from './utils';
+import { getLeaguePlayers, getLeagueTeamIds } from './utils';
 import type { AppData, League, PublicLeagueSnapshot, PublicMatch } from '../types';
 
 function withoutUndefined(value: unknown): unknown {
@@ -28,8 +28,7 @@ export function buildPublicLeagueSnapshot(data: AppData, league: League) {
   const matches = data.matches.filter((match) => match.leagueId === league.id);
   const teamIds = getLeagueTeamIds(league, matches);
   const teams = data.teams.filter((team) => teamIds.includes(team.id));
-  const players = data.players
-    .filter((player) => Boolean(player.teamId && teamIds.includes(player.teamId)))
+  const players = getLeaguePlayers(league, matches, data.players)
     .map((player) => {
       const publicPlayer = { ...player };
       delete publicPlayer.email;
@@ -54,6 +53,7 @@ export function buildPublicLeagueSnapshot(data: AppData, league: League) {
     name: league.name,
     season: league.season,
     ...(league.imageUrl ? { imageUrl: league.imageUrl } : {}),
+    format: league.format || 'teams',
     teamIds,
     status: league.status,
     yellowCardLimit: league.yellowCardLimit,

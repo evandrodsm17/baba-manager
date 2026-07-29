@@ -369,10 +369,31 @@ export function getPlayerStats(players: Player[], matches: Match[]) {
 }
 
 export function getLeagueTeamIds(league: League, matches: Match[]) {
+  if (league.format === 'draw') return [];
   const scheduledTeams = matches
-    .filter((match) => match.leagueId === league.id)
+    .filter((match) => match.leagueId === league.id && !isDrawMatch(match))
     .flatMap((match) => [match.homeTeamId, match.awayTeamId]);
   return [...new Set([...league.teamIds, ...scheduledTeams])];
+}
+
+export function getLeaguePlayers(league: League, matches: Match[], players: Player[]) {
+  if (league.format !== 'draw') {
+    const teamIds = getLeagueTeamIds(league, matches);
+    return players.filter((player) => Boolean(player.teamId && teamIds.includes(player.teamId)));
+  }
+  const playerIds = new Set(
+    matches
+      .filter((match) => match.leagueId === league.id && isDrawMatch(match))
+      .flatMap((match) => [
+        ...(match.selectedPlayerIds || []),
+        ...(match.homePlayerIds || []),
+        ...(match.awayPlayerIds || []),
+        ...(match.waitingPlayerIds || []),
+        ...match.events.flatMap((event) => [event.playerId, event.assistPlayerId].filter((id): id is string => Boolean(id))),
+        ...(match.highlights || []).map((highlight) => highlight.playerId),
+      ]),
+  );
+  return players.filter((player) => playerIds.has(player.id));
 }
 
 export function calculateStandings(league: League, matches: Match[]): Standing[] {

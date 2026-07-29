@@ -84,6 +84,7 @@ export const demoData: AppData = {
   leagues: [
     { id: 'l1', organizationId: org, name: 'Copa Resenha', season: '2026', teamIds: ['t1', 't2', 't3', 't4'], status: 'active', yellowCardLimit: 3, redCardSuspension: 1, isPublic: true, publishedAt: new Date().toISOString() },
     { id: 'l2', organizationId: org, name: 'Torneio de Verão', season: '2026', teamIds: ['t1', 't2'], status: 'finished', yellowCardLimit: 2, redCardSuspension: 1 },
+    { id: 'l3', organizationId: org, name: 'Circuito Quarta da Resenha', season: '2026', format: 'draw', teamIds: [], status: 'active', yellowCardLimit: 3, redCardSuspension: 1, isPublic: true, publishedAt: new Date().toISOString() },
   ],
   matches: [
     {
@@ -94,7 +95,7 @@ export const demoData: AppData = {
     },
     { id: 'm2', organizationId: org, leagueId: 'l1', venueId: 'v2', homeTeamId: 't3', awayTeamId: 't4', startsAt: new Date(Date.now() + 3 * 86400000).toISOString(), status: 'scheduled', requiresGeolocation: false, events: [] },
     {
-      id: 'm5', organizationId: org, venueId: 'v2', homeTeamId: 'm5-green', awayTeamId: 'm5-black', matchType: 'draw',
+      id: 'm5', organizationId: org, leagueId: 'l3', venueId: 'v2', homeTeamId: 'm5-green', awayTeamId: 'm5-black', matchType: 'draw',
       selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9', 'p10', 'p11'],
       homePlayerIds: [], awayPlayerIds: [], waitingPlayerIds: [],
       drawOrder: ['p5', 'p4', 'p9', 'p1', 'p8', 'p6', 'p2', 'p3', 'p10', 'p11'], maxPlayersPerTeam: 3,
@@ -107,6 +108,29 @@ export const demoData: AppData = {
       financialRequirement: 'no_overdue', financialReferenceMonth: currentMonth,
       financialWaiverPlayerIds: ['p2'],
       events: [], notes: 'Times definidos por sorteio entre os participantes.',
+    },
+    {
+      id: 'm6', organizationId: org, leagueId: 'l3', venueId: 'v2', homeTeamId: 'm6-lime', awayTeamId: 'm6-orange', matchType: 'draw',
+      selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9'],
+      homePlayerIds: ['p4', 'p1', 'p6', 'p9'], awayPlayerIds: ['p8', 'p2', 'p3', 'p5'], waitingPlayerIds: [],
+      drawOrder: ['p4', 'p8', 'p1', 'p2', 'p6', 'p3', 'p9', 'p5'], maxPlayersPerTeam: 4,
+      homeTeamName: 'Coletes Limão', awayTeamName: 'Coletes Laranja',
+      homeTeamColor: '#b7f52e', awayTeamColor: '#ff7a2f',
+      drawnAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+      startsAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+      status: 'finished', homeScore: 3, awayScore: 2, requiresGeolocation: false,
+      events: [
+        { id: 'm6-e1', type: 'goal', playerId: 'p1', assistPlayerId: 'p6', teamId: 'm6-lime', minute: 8 },
+        { id: 'm6-e2', type: 'goal', playerId: 'p5', assistPlayerId: 'p2', teamId: 'm6-orange', minute: 14 },
+        { id: 'm6-e3', type: 'goal', playerId: 'p9', teamId: 'm6-lime', minute: 23 },
+        { id: 'm6-e4', type: 'goal', playerId: 'p3', assistPlayerId: 'p5', teamId: 'm6-orange', minute: 31 },
+        { id: 'm6-e5', type: 'goal', playerId: 'p1', assistPlayerId: 'p9', teamId: 'm6-lime', minute: 44 },
+        { id: 'm6-e6', type: 'yellow', playerId: 'p2', teamId: 'm6-orange', minute: 39 },
+      ],
+      highlights: [
+        { id: 'm6-h1', playerId: 'p1', tone: 'positive', reason: 'Dois gols e participação decisiva na vitória.' },
+      ],
+      notes: 'Primeira rodada publicada do circuito de babas sorteados.',
     },
     {
       id: 'm3', organizationId: org, leagueId: 'l1', venueId: 'v3', homeTeamId: 't1', awayTeamId: 't3',

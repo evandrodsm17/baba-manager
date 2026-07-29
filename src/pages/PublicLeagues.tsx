@@ -10,6 +10,7 @@ import {
   MapPin,
   Share2,
   ShieldAlert,
+  Shuffle,
   Trophy,
   ThumbsDown,
   ThumbsUp,
@@ -30,6 +31,7 @@ import {
 import {
   calculateStandings,
   formatLongDate,
+  getMatchTeams,
   getPlayerStats,
   playerDisplayName,
 } from '../lib/utils';
@@ -190,7 +192,7 @@ function PublicLeagueListPage({
                 <h2>{league.name}</h2>
                 <p>Temporada {league.season}</p>
                 <div className="public-league-card__metrics">
-                  <span><Trophy size={20} /><b>{league.teamCount}</b><small>equipes</small></span>
+                  <span>{league.format === 'draw' ? <Shuffle size={20} /> : <Trophy size={20} />}<b>{league.format === 'draw' ? league.matchCount : league.teamCount}</b><small>{league.format === 'draw' ? 'babas' : 'equipes'}</small></span>
                   <span><CalendarDays size={20} /><b>{league.finishedMatchCount}</b><small>jogos</small></span>
                   <span><UsersRound size={20} /><b>{league.playerCount}</b><small>jogadores</small></span>
                 </div>
@@ -243,12 +245,17 @@ function PublicLeagueDetailPage({
     () => [...stats].filter((player) => player.yellow > 0 || player.red > 0).sort((a, b) => b.red - a.red || b.yellow - a.yellow),
     [stats],
   );
+  const isDrawLeague = league?.format === 'draw';
+  const totalGoals = stats.reduce((total, player) => total + player.goals, 0);
+  const totalAssists = stats.reduce((total, player) => total + player.assists, 0);
 
   const share = async () => {
     if (!league) return;
     const shareData = {
       title: `${league.name} · BABA MANAGER`,
-      text: `Acompanhe a classificação e os resultados da ${league.name}.`,
+      text: league.format === 'draw'
+        ? `Acompanhe os babas e os rankings individuais de ${league.name}.`
+        : `Acompanhe a classificação e os resultados da ${league.name}.`,
       url: window.location.href,
     };
     try {
@@ -284,20 +291,22 @@ function PublicLeagueDetailPage({
         <section className="public-league-hero">
           {league.imageUrl && <img className="public-league-hero__image" src={league.imageUrl} alt={`Imagem da liga ${league.name}`} />}
           <div className="public-league-hero__content">
-            <span className="eyebrow"><Trophy size={15} /> TEMPORADA {league.season}</span>
+            <span className="eyebrow">{isDrawLeague ? <Shuffle size={15} /> : <Trophy size={15} />} {isDrawLeague ? 'CIRCUITO' : 'TEMPORADA'} {league.season}</span>
             <small>{league.organizationName}</small>
             <h1>{league.name}</h1>
-            <p>{league.teamCount} equipes · {league.finishedMatchCount} partidas realizadas · {league.playerCount} jogadores</p>
+            <p>{isDrawLeague
+              ? `${league.matchCount} ${league.matchCount === 1 ? 'baba agrupado' : 'babas agrupados'} · ${league.finishedMatchCount} ${league.finishedMatchCount === 1 ? 'finalizado' : 'finalizados'} · ${league.playerCount} jogadores`
+              : `${league.teamCount} equipes · ${league.finishedMatchCount} partidas realizadas · ${league.playerCount} jogadores`}</p>
           </div>
           <div className="public-league-hero__actions">
             <Badge tone={league.status === 'active' ? 'success' : 'neutral'} dot>
-              {league.status === 'active' ? 'Liga em andamento' : 'Liga encerrada'}
+              {league.status === 'active' ? isDrawLeague ? 'Circuito em andamento' : 'Liga em andamento' : isDrawLeague ? 'Circuito encerrado' : 'Liga encerrada'}
             </Badge>
             <Button variant="secondary" icon={shared ? Copy : Share2} onClick={share}>{shared ? 'Link copiado' : 'Compartilhar liga'}</Button>
           </div>
         </section>
 
-        <section className="public-section">
+        {!isDrawLeague && <section className="public-section">
           <div className="public-section__header"><div><span>CLASSIFICAÇÃO</span><h2>Tabela da liga</h2><p>Somente partidas finalizadas geram pontos.</p></div><Badge tone="lime">3 pts por vitória</Badge></div>
           <div className="panel public-standings table-scroll">
             <div className="table-head"><span>#</span><span>Equipe</span><span>J</span><span>V</span><span>E</span><span>D</span><span>GP</span><span>GC</span><span>SG</span><span>PTS</span></div>
@@ -315,7 +324,19 @@ function PublicLeagueDetailPage({
               );
             })}
           </div>
-        </section>
+        </section>}
+
+        {isDrawLeague && (
+          <section className="public-section">
+            <div className="public-section__header"><div><span>VISÃO GERAL</span><h2>Circuito de babas sorteados</h2><p>Cada partida mantém seus próprios times; os números dos jogadores são acumulados.</p></div><Badge tone="lime">Sem tabela de equipes</Badge></div>
+            <div className="public-draw-overview">
+              <article><CalendarDays size={21} /><strong>{league.finishedMatchCount}</strong><small>{league.finishedMatchCount === 1 ? 'baba finalizado' : 'babas finalizados'}</small></article>
+              <article><UsersRound size={21} /><strong>{league.playerCount}</strong><small>jogadores</small></article>
+              <article><PiSoccerBallFill size={21} /><strong>{totalGoals}</strong><small>gols identificados</small></article>
+              <article><Footprints size={21} /><strong>{totalAssists}</strong><small>assistências</small></article>
+            </div>
+          </section>
+        )}
 
         <section className="public-section">
           <div className="public-section__header"><div><span>DESTAQUES</span><h2>Rankings individuais</h2><p>Estatísticas dos eventos registrados nas súmulas finalizadas.</p></div></div>
@@ -330,8 +351,7 @@ function PublicLeagueDetailPage({
           <div className="public-section__header"><div><span>JOGOS</span><h2>Partidas e histórico</h2><p>Abra uma partida para consultar todos os eventos da súmula.</p></div><Badge tone="neutral">{matches.length} partidas</Badge></div>
           <div className="public-match-list">
             {matches.length ? matches.map((match) => {
-              const home = league.teams.find((team) => team.id === match.homeTeamId);
-              const away = league.teams.find((team) => team.id === match.awayTeamId);
+              const [home, away] = getMatchTeams(match, league.teams);
               const expanded = expandedMatch === match.id;
               if (!home || !away) return null;
               return (
@@ -361,8 +381,18 @@ function PublicLeagueDetailPage({
         </section>
 
         <section className="public-section">
-          <div className="public-section__header"><div><span>PARTICIPANTES</span><h2>Equipes e elencos</h2><p>Jogadores vinculados às equipes desta competição.</p></div></div>
-          <div className="public-team-grid">
+          <div className="public-section__header"><div><span>PARTICIPANTES</span><h2>{isDrawLeague ? 'Jogadores do circuito' : 'Equipes e elencos'}</h2><p>{isDrawLeague ? 'Atletas convocados em pelo menos um dos babas agrupados.' : 'Jogadores vinculados às equipes desta competição.'}</p></div></div>
+          {isDrawLeague ? (
+            <div className="public-player-grid">
+              {stats.map((player) => (
+                <article key={player.id}>
+                  <Avatar name={player.name} src={player.photoUrl} size="md" />
+                  <span><strong>{playerDisplayName(player)}</strong><small>{player.positions.join(', ')}</small></span>
+                  <div><Badge tone="success">{player.goals} {player.goals === 1 ? 'gol' : 'gols'}</Badge><Badge tone="blue">{player.assists} assist.</Badge></div>
+                </article>
+              ))}
+            </div>
+          ) : <div className="public-team-grid">
             {league.teams.map((team) => {
               const players = league.players.filter((player) => player.teamId === team.id);
               return (
@@ -376,7 +406,7 @@ function PublicLeagueDetailPage({
                 </article>
               );
             })}
-          </div>
+          </div>}
         </section>
       </main>
       <PublicFooter />
@@ -411,7 +441,7 @@ function RankingCard({
               <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
               <span>
                 <strong>{playerDisplayName(player)}</strong>
-                <small>{team?.shortName} · {metric === 'goals'
+                <small>{team?.shortName ? `${team.shortName} · ` : ''}{metric === 'goals'
                   ? `${player.assists} assist.`
                   : `${player.goals} ${player.goals === 1 ? 'gol' : 'gols'}`}</small>
               </span>
@@ -441,7 +471,7 @@ function DisciplineCard({
             <div className="public-ranking-row public-ranking-row--discipline" key={player.id}>
               <b>{index + 1}</b>
               <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
-              <span><strong>{playerDisplayName(player)}</strong><small>{team?.shortName}</small></span>
+              <span><strong>{playerDisplayName(player)}</strong><small>{team?.shortName || (league.format === 'draw' ? 'Participante' : 'Sem equipe')}</small></span>
               <div>{player.yellow > 0 && <Badge tone="warning">{player.yellow} A</Badge>}{player.red > 0 && <Badge tone="danger">{player.red} V</Badge>}</div>
             </div>
           );
@@ -459,13 +489,14 @@ function MatchEvents({
   league: PublicLeagueSnapshot;
 }) {
   const events = [...match.events].sort((a, b) => a.minute - b.minute);
+  const [home, away] = getMatchTeams(match, league.teams);
   return (
     <div className="public-match__events">
       <h3>Súmula da partida</h3>
       {events.length ? events.map((event) => {
         const player = league.players.find((item) => item.id === event.playerId);
         const assist = league.players.find((item) => item.id === event.assistPlayerId);
-        const team = league.teams.find((item) => item.id === event.teamId);
+        const team = event.teamId === home?.id ? home : event.teamId === away?.id ? away : league.teams.find((item) => item.id === event.teamId);
         return (
           <div className="public-event" key={event.id}>
             <strong>{event.minute ? `${event.minute}'` : '—'}</strong>

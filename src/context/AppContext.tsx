@@ -59,7 +59,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-const storageKey = 'baba-manager-demo-data-v9';
+const storageKey = 'baba-manager-demo-data-v10';
 
 const emptyData: AppData = {
   organizations: [],
@@ -89,6 +89,11 @@ function readDemoData() {
   }
 }
 
+function readDemoRole() {
+  const role = sessionStorage.getItem('baba-demo-role') as UserRole | null;
+  return role && demoUsers[role] ? role : null;
+}
+
 function withoutUndefined(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutUndefined);
   if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
@@ -102,10 +107,10 @@ function withoutUndefined(value: unknown): unknown {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<AppData>(() => isFirebaseConfigured ? emptyData : readDemoData());
+  const [data, setData] = useState<AppData>(() => isFirebaseConfigured && !readDemoRole() ? emptyData : readDemoData());
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
-  const [isDemo, setIsDemo] = useState(!isFirebaseConfigured);
+  const [authLoading, setAuthLoading] = useState(isFirebaseConfigured && !readDemoRole());
+  const [isDemo, setIsDemo] = useState(!isFirebaseConfigured || Boolean(readDemoRole()));
   const [toasts, setToasts] = useState<Toast[]>([]);
   const dataRef = useRef(data);
 
@@ -118,9 +123,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const demoRole = readDemoRole();
+    if (demoRole) {
+      setData(readDemoData());
+      setCurrentUser(demoUsers[demoRole]);
+      setIsDemo(true);
+      setAuthLoading(false);
+      return;
+    }
     if (!isFirebaseConfigured) {
-      const role = sessionStorage.getItem('baba-demo-role') as UserRole | null;
-      if (role && demoUsers[role]) setCurrentUser(demoUsers[role]);
       setAuthLoading(false);
       return;
     }
@@ -251,6 +262,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loginGoogle = useCallback(async () => {
     setAuthLoading(true);
+    sessionStorage.removeItem('baba-demo-role');
     try {
       const credential = await signInWithGoogle();
       const profile = await resolveUserProfile(credential.user);
@@ -337,6 +349,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ) => {
     const currentData = dataRef.current;
     const list = currentData[key] as Array<{ id: string }>;
+    const previousEntity = list.find((item) => item.id === entity.id) as { leagueId?: string } | undefined;
     const next = list.some((item) => item.id === entity.id)
       ? list.map((item) => item.id === entity.id ? entity : item)
       : [entity, ...list];
@@ -353,8 +366,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const changedEntity = entity as { id: string; organizationId?: string; leagueId?: string };
         const affectedLeagueIds = key === 'leagues'
           ? [changedEntity.id]
-          : key === 'matches' && changedEntity.leagueId
-            ? [changedEntity.leagueId]
+          : key === 'matches'
+            ? [previousEntity?.leagueId, changedEntity.leagueId].filter((leagueId): leagueId is string => Boolean(leagueId))
             : nextData.leagues
               .filter((league) => (
                 league.isPublic

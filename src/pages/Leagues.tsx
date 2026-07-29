@@ -1,11 +1,11 @@
-import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Plus, ShieldCheck, Sparkles, Trash2, Trophy } from 'lucide-react';
+import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Plus, ShieldCheck, Shuffle, Sparkles, Trash2, Trophy, UsersRound } from 'lucide-react';
 import { PiSoccerBallFill } from "react-icons/pi";
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
-import { calculateStandings, getLeagueTeamIds, getPlayerStats, playerDisplayName } from '../lib/utils';
-import type { League } from '../types';
+import { calculateStandings, getLeaguePlayers, getLeagueTeamIds, getPlayerStats, playerDisplayName } from '../lib/utils';
+import type { League, MatchType } from '../types';
 
 export function Leagues() {
   const { data, currentUser, saveEntity, deleteEntityWithDependencies, notify } = useApp();
@@ -15,6 +15,7 @@ export function Leagues() {
   const [selectedId, setSelectedId] = useState(leagues.find((league) => league.status === 'active')?.id || leagues[0]?.id);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
+  const [leagueFormat, setLeagueFormat] = useState<MatchType>('teams');
   const [deletingLeague, setDeletingLeague] = useState<League | null>(null);
   const [copying, setCopying] = useState(false);
   const selected = leagues.find((league) => league.id === selectedId);
@@ -24,10 +25,15 @@ export function Leagues() {
     [selected, data.matches],
   );
   const standings = selected ? calculateStandings(selected, data.matches) : [];
+  const isDrawLeague = selected?.format === 'draw';
+  const leaguePlayers = useMemo(
+    () => selected ? getLeaguePlayers(selected, leagueMatches, data.players) : [],
+    [selected, leagueMatches, data.players],
+  );
   const stats = useMemo(() => getPlayerStats(
-    data.players.filter((player) => player.organizationId === orgId && Boolean(player.teamId && leagueTeamIds.includes(player.teamId))),
+    leaguePlayers.filter((player) => player.organizationId === orgId),
     leagueMatches,
-  ), [data.players, leagueMatches, leagueTeamIds, orgId]);
+  ), [leaguePlayers, leagueMatches, orgId]);
   const scorers = [...stats]
     .filter((player) => player.goals > 0 || player.assists > 0)
     .sort((a, b) => b.goals - a.goals || b.assists - a.assists)
@@ -45,6 +51,7 @@ export function Leagues() {
 
   const openLeagueForm = (league?: League) => {
     setEditingLeague(league || null);
+    setLeagueFormat(league?.format || 'teams');
     setModalOpen(true);
   };
 
@@ -58,14 +65,19 @@ export function Leagues() {
       name: String(form.get('name')).trim(),
       season: String(form.get('season')).trim(),
       imageUrl: String(form.get('imageUrl') || '').trim() || undefined,
-      teamIds: form.getAll('teamIds').map(String),
+      format: leagueFormat,
+      teamIds: leagueFormat === 'draw' ? [] : form.getAll('teamIds').map(String),
       status: editingLeague?.status || 'active',
       yellowCardLimit: Number(form.get('yellowCardLimit')) || 3,
       redCardSuspension: Number(form.get('redCardSuspension')) || 1,
     };
     await saveEntity('leagues', entity, editingLeague ? 'atualizou uma liga' : 'criou uma liga');
     setSelectedId(entity.id);
-    notify(editingLeague ? 'Liga atualizada.' : 'Liga criada. Os próximos resultados já podem valer pontos.');
+    notify(editingLeague
+      ? 'Liga atualizada.'
+      : leagueFormat === 'draw'
+        ? 'Circuito criado. Os babas sorteados já podem ser agrupados e publicados.'
+        : 'Liga criada. Os próximos resultados já podem valer pontos.');
     setModalOpen(false);
     setEditingLeague(null);
   };
@@ -101,7 +113,9 @@ export function Leagues() {
       <PageHeader
         eyebrow="COMPETIÇÕES"
         title="Ligas e rankings"
-        description="Classificação, artilharia e disciplina calculadas a partir das súmulas."
+        description={isDrawLeague
+          ? 'Histórico dos babas e estatísticas individuais calculadas a partir das súmulas.'
+          : 'Classificação, artilharia e disciplina calculadas a partir das súmulas.'}
         action={canManage ? (
           <div className="page-header__actions">
             {selected && (
@@ -124,8 +138,8 @@ export function Leagues() {
           <div className="league-tabs">
             {leagues.map((league) => (
               <button type="button" key={league.id} className={selectedId === league.id ? 'active' : ''} onClick={() => setSelectedId(league.id)}>
-                <span><Trophy size={18} /></span>
-                <div><strong>{league.name}</strong><small>Temporada {league.season}</small></div>
+                <span>{league.format === 'draw' ? <Shuffle size={18} /> : <Trophy size={18} />}</span>
+                <div><strong>{league.name}</strong><small>{league.format === 'draw' ? 'Babas sorteados' : 'Temporada'} · {league.season}</small></div>
                 <Badge tone={league.status === 'active' ? 'success' : 'neutral'} dot>{league.status === 'active' ? 'Em andamento' : 'Encerrada'}</Badge>
               </button>
             ))}
@@ -135,7 +149,13 @@ export function Leagues() {
             <>
               <div className={`league-banner ${selected.imageUrl ? 'league-banner--with-image' : ''}`}>
                 {selected.imageUrl && <img className="league-banner__image" src={selected.imageUrl} alt={`Imagem da liga ${selected.name}`} />}
-                <div className="league-banner__content"><span className="eyebrow"><Sparkles size={14} /> TEMPORADA {selected.season}</span><h2>{selected.name}</h2><p>{leagueTeamIds.length} equipes · {leagueMatches.filter((match) => match.status === 'finished').length} partidas realizadas</p></div>
+                <div className="league-banner__content">
+                  <span className="eyebrow"><Sparkles size={14} /> {isDrawLeague ? 'CIRCUITO' : 'TEMPORADA'} {selected.season}</span>
+                  <h2>{selected.name}</h2>
+                  <p>{isDrawLeague
+                    ? `${leaguePlayers.length} jogadores · ${leagueMatches.filter((match) => match.status === 'finished').length} ${leagueMatches.filter((match) => match.status === 'finished').length === 1 ? 'baba realizado' : 'babas realizados'}`
+                    : `${leagueTeamIds.length} equipes · ${leagueMatches.filter((match) => match.status === 'finished').length} partidas realizadas`}</p>
+                </div>
                 <div className="league-banner__rules"><span><strong>{selected.yellowCardLimit}</strong><small>amarelos = suspensão</small></span><span><strong>{selected.redCardSuspension}</strong><small>jogo por vermelho</small></span></div>
               </div>
 
@@ -145,7 +165,9 @@ export function Leagues() {
                   <div>
                     <strong>{selected.isPublic ? 'Página pública ativa' : 'Compartilhe esta liga'}</strong>
                     <p>{selected.isPublic
-                      ? 'Classificação, partidas e rankings podem ser vistos sem login.'
+                      ? isDrawLeague
+                        ? 'Babas, súmulas e rankings individuais podem ser vistos sem login.'
+                        : 'Classificação, partidas e rankings podem ser vistos sem login.'
                       : 'Publique uma página externa segura para jogadores, amigos e torcedores.'}</p>
                   </div>
                   <div className="league-publication__actions">
@@ -165,7 +187,7 @@ export function Leagues() {
               )}
 
               <div className="league-grid">
-                <section className="panel league-grid__table">
+                {!isDrawLeague && <section className="panel league-grid__table">
                   <div className="section-header"><div><h2>Classificação</h2><p>Atualizada com os jogos finalizados</p></div><Badge tone="lime">3 pts por vitória</Badge></div>
                   <div className="standings table-scroll">
                     <div className="table-head"><span>#</span><span>Equipe</span><span>J</span><span>V</span><span>E</span><span>D</span><span>SG</span><span>PTS</span></div>
@@ -183,7 +205,19 @@ export function Leagues() {
                       );
                     })}
                   </div>
-                </section>
+                </section>}
+
+                {isDrawLeague && (
+                  <section className="panel league-draw-overview">
+                    <div className="section-header"><div><h2>Resumo do circuito</h2><p>Resultados acumulados dos babas sorteados</p></div><Shuffle size={20} /></div>
+                    <div>
+                      <span><strong>{leagueMatches.length}</strong><small>babas cadastrados</small></span>
+                      <span><strong>{leagueMatches.filter((match) => match.status === 'finished').length}</strong><small>finalizados</small></span>
+                      <span><strong>{leaguePlayers.length}</strong><small>jogadores</small></span>
+                      <span><strong>{stats.reduce((total, player) => total + player.goals, 0)}</strong><small>gols registrados</small></span>
+                    </div>
+                  </section>
+                )}
 
                 <section className="panel">
                   <div className="section-header"><div><h2>Artilharia</h2><p>Gols nesta competição</p></div><PiSoccerBallFill size={20} /></div>
@@ -193,7 +227,7 @@ export function Leagues() {
                       return (
                         <div className="scorer" key={player.id}>
                           <b>{index + 1}</b><Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
-                          <span><strong>{playerDisplayName(player)}</strong><small>{team?.shortName} · {player.assists} assist.</small></span>
+                          <span><strong>{playerDisplayName(player)}</strong><small>{team?.shortName ? `${team.shortName} · ` : ''}{player.assists} assist.</small></span>
                           <em>{player.goals}</em>
                         </div>
                       );
@@ -210,7 +244,7 @@ export function Leagues() {
                         return (
                           <div className="discipline-row" key={player.id}>
                             <Avatar name={player.name} size="sm" tone={team?.color} />
-                            <span><strong>{player.name}</strong><small>{team?.name}</small></span>
+                            <span><strong>{player.name}</strong><small>{isDrawLeague ? 'Participante do circuito' : team?.name}</small></span>
                             <div>{player.yellow > 0 && <Badge tone="warning">{player.yellow} amarelo{player.yellow > 1 ? 's' : ''}</Badge>}{player.red > 0 && <Badge tone="danger">{player.red} vermelho{player.red > 1 ? 's' : ''}</Badge>}</div>
                             <Badge tone="danger">Suspensão sugerida</Badge>
                           </div>
@@ -229,28 +263,52 @@ export function Leagues() {
 
       <Modal
         open={modalOpen}
-        onClose={() => { setModalOpen(false); setEditingLeague(null); }}
+        onClose={() => { setModalOpen(false); setEditingLeague(null); setLeagueFormat('teams'); }}
         title={editingLeague ? 'Editar liga' : 'Criar nova liga'}
-        description="Defina a identidade, as equipes e as regras disciplinares."
+        description="Escolha entre uma competição de equipes ou um circuito para agrupar babas sorteados."
         size="lg"
       >
         <form className="form" onSubmit={saveLeague}>
+          <div className="match-type-selector league-format-selector">
+            <button
+              type="button"
+              className={leagueFormat === 'teams' ? 'active' : ''}
+              disabled={Boolean(editingLeague && data.matches.some((match) => match.leagueId === editingLeague.id))}
+              onClick={() => setLeagueFormat('teams')}
+            >
+              <Trophy size={21} /><span><strong>Equipes fixas</strong><small>Classificação, pontos, confrontos e rankings.</small></span>
+            </button>
+            <button
+              type="button"
+              className={leagueFormat === 'draw' ? 'active' : ''}
+              disabled={Boolean(editingLeague && data.matches.some((match) => match.leagueId === editingLeague.id))}
+              onClick={() => setLeagueFormat('draw')}
+            >
+              <Shuffle size={21} /><span><strong>Babas sorteados</strong><small>Histórico público e estatísticas dos jogadores, sem tabela de equipes.</small></span>
+            </button>
+          </div>
+          {editingLeague && data.matches.some((match) => match.leagueId === editingLeague.id) && (
+            <div className="form-tip"><ShieldCheck size={18} /><p><strong>Formato protegido</strong><span>O tipo não pode ser alterado porque esta liga já possui partidas vinculadas.</span></p></div>
+          )}
           <div className="form-row form-row--2">
             <label><span>Nome da competição</span><input name="name" required defaultValue={editingLeague?.name} placeholder="Ex.: Copa Resenha" /></label>
             <label><span>Temporada</span><input name="season" required defaultValue={editingLeague?.season || new Date().getFullYear()} /></label>
           </div>
           <label><span>URL da imagem da liga <small>(opcional)</small></span><input name="imageUrl" type="url" defaultValue={editingLeague?.imageUrl} placeholder="https://..." /></label>
-          <fieldset className="team-picker">
+          {leagueFormat === 'teams' && <fieldset className="team-picker">
             <legend>Equipes participantes</legend>
             <div>{data.teams.filter((team) => team.organizationId === orgId).map((team) => <label key={team.id}><input type="checkbox" name="teamIds" value={team.id} defaultChecked={editingLeague?.teamIds.includes(team.id)} /><TeamMark {...team} size="sm" /><span>{team.name}</span><i /></label>)}</div>
-          </fieldset>
+          </fieldset>}
+          {leagueFormat === 'draw' && (
+            <div className="form-tip"><UsersRound size={18} /><p><strong>Classificação individual</strong><span>Jogadores serão incluídos automaticamente quando um baba sorteado for vinculado a este circuito.</span></p></div>
+          )}
           <div className="form-row form-row--2">
             <label><span>Limite de cartões amarelos</span><input name="yellowCardLimit" type="number" min="1" defaultValue={editingLeague?.yellowCardLimit || 3} /></label>
             <label><span>Jogos de suspensão por vermelho</span><input name="redCardSuspension" type="number" min="1" defaultValue={editingLeague?.redCardSuspension || 1} /></label>
           </div>
           <div className="form-tip"><ImageIcon size={18} /><p><strong>Imagem da competição</strong><span>A URL será usada na gestão e na página pública sem distorcer a proporção original.</span></p></div>
           <div className="form-tip"><ShieldCheck size={18} /><p><strong>Controle automático</strong><span>Cartões das partidas desta liga alimentarão a central disciplinar.</span></p></div>
-          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => { setModalOpen(false); setEditingLeague(null); }}>Cancelar</Button><Button type="submit" icon={Trophy}>{editingLeague ? 'Salvar alterações' : 'Criar liga'}</Button></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => { setModalOpen(false); setEditingLeague(null); setLeagueFormat('teams'); }}>Cancelar</Button><Button type="submit" icon={leagueFormat === 'draw' ? Shuffle : Trophy}>{editingLeague ? 'Salvar alterações' : leagueFormat === 'draw' ? 'Criar circuito' : 'Criar liga'}</Button></div>
         </form>
       </Modal>
 

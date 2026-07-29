@@ -8205,6 +8205,107 @@ img {
   }
 }
 
+.league-draw-overview > div,
+.public-draw-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.league-draw-overview > div > span,
+.public-draw-overview > article {
+  min-width: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid #2b4635;
+  border-radius: 12px;
+  background: #0d2015;
+}
+
+.league-draw-overview > div > span strong,
+.public-draw-overview > article strong {
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.league-draw-overview > div > span small,
+.public-draw-overview > article small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.public-draw-overview > article svg {
+  margin-bottom: 8px;
+  color: #b7f52e;
+}
+
+.public-player-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.public-player-grid > article {
+  min-width: 0;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #294232;
+  border-radius: 13px;
+  background: #0d2015;
+}
+
+.public-player-grid > article > span {
+  min-width: 0;
+}
+
+.public-player-grid > article > span strong,
+.public-player-grid > article > span small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-player-grid > article > span strong {
+  color: #ecf7ef;
+  font-size: 13px;
+}
+
+.public-player-grid > article > span small {
+  margin-top: 3px;
+  color: #8fa096;
+  font-size: 10px;
+}
+
+.public-player-grid > article > div {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .league-draw-overview > div,
+  .public-draw-overview,
+  .public-player-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .league-draw-overview > div,
+  .public-draw-overview,
+  .public-player-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Attendance confirmation */
 .confirmation-config {
   padding: 14px;

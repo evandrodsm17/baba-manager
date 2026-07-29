@@ -17,6 +17,7 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - locais com coordenadas e raio autorizado para check-in;
 - partidas agendadas, ao vivo e finalizadas;
 - partidas entre equipes fixas ou com times temporários sorteados entre os jogadores selecionados;
+- circuitos de babas sorteados, com histórico público e rankings individuais sem classificação de times temporários;
 - convocação editável em partidas sorteadas, com substituição de ausentes e preservação da ordem dos check-ins;
 - regra financeira opcional por partida, com liberação excepcional justificada pelo gerenciador;
 - relação de convocados e respostas visível aos jogadores participantes;
@@ -394,7 +395,7 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 3. Crie uma equipe.
 4. Cadastre um local.
 5. Cadastre jogadores.
-6. Crie uma liga e, se desejar, informe a URL de uma imagem de capa. Uma liga existente pode ser atualizada com **Editar liga**.
+6. Crie uma liga e escolha o formato **Equipes fixas** ou **Babas sorteados**. Se desejar, informe a URL de uma imagem de capa. Uma liga existente pode ser atualizada com **Editar liga**.
 7. Agende uma partida entre equipes fixas ou escolha **Times sorteados**, informe o limite por equipe e selecione ao menos dois goleiros entre os participantes. Jogadores sem equipe também podem ser selecionados.
 8. Mantenha **Solicitar confirmação antecipada** ativado e informe o prazo para os jogadores responderem.
 9. Escolha, se desejar, uma **Regra financeira da partida**. Ela é aplicada somente aos mensalistas.
@@ -413,6 +414,8 @@ Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail qu
 No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os dois times existem somente naquela partida e podem receber nomes e cores próprios para representar os coletes utilizados. A confirmação “Vou” reserva uma vaga até o limite configurado; quem exceder o limite entra na fila de espera e é promovido automaticamente quando houver desistência. Mensalistas e jogadores sem classificação ficam antes dos convidados. Depois, a primeira formação respeita a ordem dos check-ins validados, novamente mantendo convidados depois dos demais. O sistema reserva um goleiro para cada equipe e somente forma os times depois que dois jogadores da posição confirmarem presença e fizerem check-in.
 
 O gerenciador pode usar **Editar convocados** enquanto a partida estiver agendada. Ao remover alguém, o sistema informa quantas respostas e quantos check-ins serão excluídos; os novos convidados são acrescentados ao fim da ordem do sorteio e os check-ins dos demais permanecem intactos. Ainda é obrigatório manter ao menos dois goleiros na convocação. O gerenciador também pode usar **Personalizar times** para corrigir nomes e cores sem alterar a escalação ou a súmula e **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
+
+Para agrupar e publicar esses jogos, crie em **Ligas → Nova liga** uma competição no formato **Babas sorteados**. Ao agendar o baba, selecione o circuito no campo opcional correspondente. Partidas já cadastradas também podem ser incluídas ou transferidas usando **Organizar em liga** nos detalhes da partida. Como os nomes e as cores dos coletes podem mudar a cada rodada, esse formato não cria tabela por equipes: a página pública apresenta o histórico, as súmulas, os destaques, a artilharia, o ranking de assistências, os cartões e a relação de jogadores do circuito.
 
 Se um jogador estiver sem celular ou internet, o gerenciador pode usar **Confirmar check-in** na relação de jogadores da partida. Esse registro manual ignora a exigência de geolocalização, utiliza o horário em que o gerenciador confirmou a presença e fica identificado no sistema para auditoria. Ele continua limitado à janela de check-in da partida, que usa 30 minutos antes e 20 minutos depois como padrão e pode ser alterada em **Configurar check-in**. Se a escalação do sorteio já estiver fechada, o jogador será incluído na fila de espera sem alterar os times.
 
@@ -470,7 +473,7 @@ A listagem geral fica disponível em:
 /ligas-publicas
 ```
 
-Ela apresenta classificação, jogos agendados e finalizados, placares, eventos da súmula, destaques justificados, artilharia, ranking de assistências, cartões, equipes e elencos. A publicação utiliza uma cópia sanitizada: e-mails, check-ins, coordenadas e dados administrativos não são expostos.
+Nas ligas tradicionais, ela apresenta classificação, jogos agendados e finalizados, placares, eventos da súmula, destaques justificados, artilharia, ranking de assistências, cartões, equipes e elencos. Ligas no formato **Babas sorteados** substituem a classificação por um resumo do circuito e acumulam as estatísticas individuais, mantendo em cada partida os times temporários usados naquele dia. A publicação utiliza uma cópia sanitizada: e-mails, check-ins, coordenadas e dados administrativos não são expostos.
 
 #### Teste do Jogador
 
@@ -500,7 +503,7 @@ O sistema cria e utiliza as seguintes coleções:
 | `teams` | Equipes |
 | `players` | Jogadores |
 | `venues` | Campos e quadras |
-| `leagues` | Ligas e regras disciplinares |
+| `leagues` | Ligas de equipes ou circuitos de babas sorteados, publicação e regras disciplinares |
 | `matches` | Partidas, placares e súmulas |
 | `matchConfirmations` | Respostas “Vou”, “Talvez” e “Não vou”, incluindo registros feitos pelo gerenciador |
 | `checkins` | Presenças validadas |

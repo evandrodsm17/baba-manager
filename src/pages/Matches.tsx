@@ -73,6 +73,7 @@ function MatchesList() {
   const [checkinOpensMinutesBefore, setCheckinOpensMinutesBefore] = useState(30);
   const [checkinClosesMinutesAfter, setCheckinClosesMinutesAfter] = useState(20);
   const [financialRequirement, setFinancialRequirement] = useState<FinancialRequirement>('none');
+  const [selectedLeagueId, setSelectedLeagueId] = useState('');
   const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
@@ -82,6 +83,11 @@ function MatchesList() {
     .filter((player) => player.organizationId === orgId && player.status === 'active')
     .sort((a, b) => a.name.localeCompare(b.name));
   const venues = data.venues.filter((venue) => venue.organizationId === orgId);
+  const compatibleLeagues = data.leagues.filter((league) => (
+    league.organizationId === orgId
+    && league.status === 'active'
+    && (matchType === 'draw' ? league.format === 'draw' : league.format !== 'draw')
+  ));
   const selectedGoalkeeperCount = availablePlayers.filter((player) => (
     selectedPlayerIds.includes(player.id)
     && player.positions.some((position) => position.toLocaleLowerCase('pt-BR') === 'goleiro')
@@ -129,6 +135,7 @@ function MatchesList() {
     setCheckinOpensMinutesBefore(30);
     setCheckinClosesMinutesAfter(20);
     setFinancialRequirement('none');
+    setSelectedLeagueId('');
     setScheduleError('');
     setModalOpen(true);
   };
@@ -173,7 +180,7 @@ function MatchesList() {
       return;
     }
     const venue = data.venues.find((item) => item.id === form.get('venueId'));
-    const leagueId = matchType === 'teams' ? String(form.get('leagueId') || '') || undefined : undefined;
+    const leagueId = selectedLeagueId || undefined;
     const matchId = createId('match');
     const drawOrder = matchType === 'draw' ? shufflePlayerIds(selectedPlayerIds) : undefined;
     const startsAtMs = +new Date(String(form.get('startsAt')));
@@ -221,7 +228,7 @@ function MatchesList() {
     await saveEntity('matches', entity, 'criou uma partida');
     if (leagueId) {
       const league = data.leagues.find((item) => item.id === leagueId);
-      if (league) {
+      if (league && league.format !== 'draw' && matchType === 'teams') {
         const teamIds = [...new Set([...league.teamIds, homeTeamId, awayTeamId])];
         if (teamIds.length !== league.teamIds.length) {
           await saveEntity('leagues', { ...league, teamIds });
@@ -264,10 +271,10 @@ function MatchesList() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Agendar partida" description="Escolha entre equipes fixas ou um baba com times sorteados." size="lg">
         <form className="form" onSubmit={submit}>
           <div className="match-type-selector">
-            <button type="button" className={matchType === 'teams' ? 'active' : ''} onClick={() => { setMatchType('teams'); setScheduleError(''); }}>
+            <button type="button" className={matchType === 'teams' ? 'active' : ''} onClick={() => { setMatchType('teams'); setSelectedLeagueId(''); setScheduleError(''); }}>
               <Trophy size={21} /><span><strong>Equipes fixas</strong><small>Confronto tradicional, amistoso ou por uma liga.</small></span>
             </button>
-            <button type="button" className={matchType === 'draw' ? 'active' : ''} onClick={() => { setMatchType('draw'); setScheduleError(''); }}>
+            <button type="button" className={matchType === 'draw' ? 'active' : ''} onClick={() => { setMatchType('draw'); setSelectedLeagueId(''); setScheduleError(''); }}>
               <Shuffle size={21} /><span><strong>Times sorteados</strong><small>As confirmações definem as vagas; o check-in ordena e o sorteio distribui os jogadores.</small></span>
             </button>
           </div>
@@ -444,7 +451,14 @@ function MatchesList() {
               <small>A regra vale somente para mensalistas. Convidados e jogadores sem classificação permanecem liberados.</small>
             </p>
           </div>
-          {matchType === 'teams' && <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>}
+          <label>
+            <span>{matchType === 'draw' ? 'Circuito de babas sorteados' : 'Liga ou competição'} <small>(opcional)</small></span>
+            <select value={selectedLeagueId} onChange={(event) => setSelectedLeagueId(event.target.value)}>
+              <option value="">{matchType === 'draw' ? 'Baba independente — não publicar em um circuito' : 'Amistoso — não contabiliza estatísticas de liga'}</option>
+              {compatibleLeagues.map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}
+            </select>
+            {matchType === 'draw' && !compatibleLeagues.length && <small>Crie primeiro uma liga no formato “Babas sorteados” para agrupar e publicar estas partidas.</small>}
+          </label>
           <label className="toggle-field"><input type="checkbox" name="requiresGeolocation" /><i /><span><strong>Exigir geolocalização no check-in</strong><small>O jogador deverá estar dentro do raio definido no local.</small></span></label>
           <fieldset className="checkin-window-config">
             <legend><Clock3 size={18} /><span>Janela do check-in</span></legend>
@@ -475,6 +489,8 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const [eventOpen, setEventOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [teamIdentityOpen, setTeamIdentityOpen] = useState(false);
+  const [competitionOpen, setCompetitionOpen] = useState(false);
+  const [competitionLeagueId, setCompetitionLeagueId] = useState('');
   const [checkinSettingsOpen, setCheckinSettingsOpen] = useState(false);
   const [highlightsOpen, setHighlightsOpen] = useState(false);
   const [highlightDrafts, setHighlightDrafts] = useState<MatchHighlight[]>([]);
@@ -494,6 +510,11 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const [baseHome, baseAway] = getMatchTeams(match, data.teams);
   const venue = data.venues.find((item) => item.id === match.venueId);
   const league = data.leagues.find((item) => item.id === match.leagueId);
+  const compatibleMatchLeagues = data.leagues.filter((item) => (
+    item.organizationId === match.organizationId
+    && item.status === 'active'
+    && (isDrawMatch(match) ? item.format === 'draw' : item.format !== 'draw')
+  ));
   const checkinWindow = getCheckinWindow(match);
   const confirmationQueue = buildConfirmationQueue(match, data.players, data.matchConfirmations);
   const confirmedSpotIds = new Set(confirmationQueue.confirmedPlayerIds);
@@ -792,6 +813,34 @@ function MatchDetails({ matchId }: { matchId: string }) {
     setTeamIdentityOpen(true);
   };
 
+  const openCompetition = () => {
+    setCompetitionLeagueId(match.leagueId || '');
+    setCompetitionOpen(true);
+  };
+
+  const saveCompetition = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const selectedLeague = compatibleMatchLeagues.find((item) => item.id === competitionLeagueId);
+    if (competitionLeagueId && !selectedLeague) {
+      notify('A competição escolhida não é compatível com o formato desta partida.', 'error');
+      return;
+    }
+    await saveEntity('matches', {
+      ...match,
+      leagueId: competitionLeagueId || undefined,
+    }, competitionLeagueId ? 'vinculou uma partida a uma competição' : 'removeu uma partida da competição');
+    if (selectedLeague && !isDrawMatch(match)) {
+      const teamIds = [...new Set([...selectedLeague.teamIds, match.homeTeamId, match.awayTeamId])];
+      if (teamIds.length !== selectedLeague.teamIds.length) {
+        await saveEntity('leagues', { ...selectedLeague, teamIds });
+      }
+    }
+    notify(competitionLeagueId
+      ? `Partida vinculada a ${selectedLeague?.name}.`
+      : 'Partida removida do contexto competitivo.');
+    setCompetitionOpen(false);
+  };
+
   const saveCheckinSettings = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -932,7 +981,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
           <Badge tone={match.status === 'finished' ? 'neutral' : match.status === 'live' ? 'danger' : 'lime'}>
             {match.status === 'finished' ? 'Partida finalizada' : match.status === 'live' ? 'Partida em andamento' : 'Partida agendada'}
           </Badge>
-          <span>{isDrawMatch(match) ? 'Baba com times sorteados' : league?.name || 'Amistoso'}</span>
+          <span>{isDrawMatch(match)
+            ? league ? `${league.name} · Times sorteados` : 'Baba com times sorteados'
+            : league?.name || 'Amistoso'}</span>
         </div>
         <div className="match-detail-score">
           <div><TeamMark {...home} size="lg" /><h2>{home.name}</h2><small>MANDANTE</small></div>
@@ -949,6 +1000,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
         {canManage && (
           <div className="match-detail-hero__actions">
             {isDrawMatch(match) && <Button variant="ghost" icon={Palette} onClick={openTeamIdentity}>Personalizar times</Button>}
+            <Button variant="ghost" icon={Trophy} onClick={openCompetition}>{league ? 'Alterar competição' : 'Organizar em liga'}</Button>
             <Button variant="ghost" icon={Clock3} onClick={() => setCheckinSettingsOpen(true)}>Configurar check-in</Button>
             <Button variant="ghost" icon={Award} onClick={openHighlights}>Destaques</Button>
             <Button variant="danger" icon={Trash2} onClick={() => setDeleteOpen(true)}>Excluir partida</Button>
@@ -1284,13 +1336,46 @@ function MatchDetails({ matchId }: { matchId: string }) {
         <aside className="match-detail-aside">
           <section className="panel detail-info-card">
             <h3>Informações</h3>
-            <div><span>{isDrawMatch(match) ? <Shuffle size={16} /> : <Trophy size={16} />}</span><p><small>Formato</small><strong>{isDrawMatch(match) ? 'Baba com times sorteados' : league?.name || 'Partida amistosa'}</strong></p></div>
+            <div><span>{isDrawMatch(match) ? <Shuffle size={16} /> : <Trophy size={16} />}</span><p><small>Formato</small><strong>{isDrawMatch(match) ? 'Baba com times sorteados' : 'Equipes fixas'}</strong></p></div>
+            <div><span><Trophy size={16} /></span><p><small>Competição</small><strong>{league?.name || 'Sem contexto competitivo'}</strong></p></div>
             <div><span><MapPin size={16} /></span><p><small>Local</small><strong>{venue?.name}</strong></p></div>
             <div><span><UsersRound size={16} /></span><p><small>Check-ins validados</small><strong>{checkedIn.length} jogadores</strong></p></div>
           </section>
           {match.requiresGeolocation && <section className="panel geo-status"><span><Radio size={19} /></span><div><strong>Proteção por localização</strong><p>Raio permitido: {venue?.checkinRadius || 0} metros.</p></div></section>}
         </aside>
       </div>
+
+      <Modal
+        open={competitionOpen}
+        onClose={() => setCompetitionOpen(false)}
+        title={isDrawMatch(match) ? 'Organizar baba em um circuito' : 'Definir competição'}
+        description={isDrawMatch(match)
+          ? 'O vínculo permite publicar a partida, a súmula e as estatísticas individuais sem criar uma classificação para os times temporários.'
+          : 'Escolha se este confronto vale por uma liga de equipes fixas.'}
+      >
+        <form className="form" onSubmit={saveCompetition}>
+          <label>
+            <span>{isDrawMatch(match) ? 'Circuito de babas sorteados' : 'Liga ou competição'}</span>
+            <select value={competitionLeagueId} onChange={(event) => setCompetitionLeagueId(event.target.value)}>
+              <option value="">Sem contexto competitivo</option>
+              {compatibleMatchLeagues.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.season}</option>)}
+            </select>
+          </label>
+          {!compatibleMatchLeagues.length && (
+            <div className="form-tip form-tip--warning">
+              <ShieldAlert size={18} />
+              <p><strong>Nenhuma competição compatível</strong><span>Crie uma liga no formato “{isDrawMatch(match) ? 'Babas sorteados' : 'Equipes fixas'}” na área de Ligas.</span></p>
+            </div>
+          )}
+          <div className="form-tip">
+            {isDrawMatch(match) ? <Shuffle size={18} /> : <Trophy size={18} />}
+            <p><strong>{isDrawMatch(match) ? 'Rankings individuais' : 'Classificação por equipes'}</strong><span>{isDrawMatch(match)
+              ? 'Gols, assistências, cartões, destaques e histórico serão acumulados no circuito escolhido.'
+              : 'O resultado passará a alimentar a tabela e os rankings da liga.'}</span></p>
+          </div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setCompetitionOpen(false)}>Cancelar</Button><Button type="submit" icon={Trophy}>Salvar vínculo</Button></div>
+        </form>
+      </Modal>
 
       <Modal
         open={eventOpen}

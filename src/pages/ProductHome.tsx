@@ -204,7 +204,7 @@ export function ProductHome() {
                       <small>{league.organizationName}</small>
                       <h3>{league.name}</h3>
                       <p>Temporada {league.season}</p>
-                      <div><span><b>{league.teamCount}</b> equipes</span><span><b>{league.finishedMatchCount}</b> jogos</span><span><b>{league.playerCount}</b> atletas</span></div>
+                      <div><span><b>{league.format === 'draw' ? league.matchCount : league.teamCount}</b> {league.format === 'draw' ? 'babas' : 'equipes'}</span><span><b>{league.finishedMatchCount}</b> jogos</span><span><b>{league.playerCount}</b> atletas</span></div>
                       <button type="button" onClick={() => navigate(`/liga/${league.id}`)}>Acompanhar liga <ArrowRight size={17} /></button>
                     </div>
                   </article>
