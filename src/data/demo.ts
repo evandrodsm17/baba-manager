@@ -104,6 +104,8 @@ export const demoData: AppData = {
       status: 'scheduled', requiresGeolocation: false, requiresConfirmation: true,
       checkinOpensMinutesBefore: 30, checkinClosesMinutesAfter: 20,
       confirmationDeadline: new Date(Date.now() - 60 * 60000).toISOString(), confirmationLimit: 6,
+      financialRequirement: 'no_overdue', financialReferenceMonth: currentMonth,
+      financialWaiverPlayerIds: ['p2'],
       events: [], notes: 'Times definidos por sorteio entre os participantes.',
     },
     {
@@ -191,6 +193,28 @@ export const demoData: AppData = {
       id: `guest-${currentMonth}-p3`, organizationId: org, playerId: 'p3', type: 'guest',
       description: 'Participação avulsa', referenceMonth: currentMonth, amount: 25,
       dueDate: `${currentMonth}-20`, status: 'pending', createdAt: `${currentMonth}-15T12:00:00.000Z`,
+    },
+  ],
+  financialStatuses: [
+    { id: `${org}-p1`, organizationId: org, playerId: 'p1', overdueMonthlyCount: 0, paidReferenceMonths: [currentMonth], updatedAt: new Date().toISOString() },
+    { id: `${org}-p2`, organizationId: org, playerId: 'p2', overdueMonthlyCount: 1, paidReferenceMonths: [], updatedAt: new Date().toISOString() },
+    { id: `${org}-p3`, organizationId: org, playerId: 'p3', overdueMonthlyCount: 0, paidReferenceMonths: [], updatedAt: new Date().toISOString() },
+    { id: `${org}-p4`, organizationId: org, playerId: 'p4', overdueMonthlyCount: 0, paidReferenceMonths: [currentMonth], updatedAt: new Date().toISOString() },
+    ...['p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11'].map((playerId) => ({
+      id: `${org}-${playerId}`,
+      organizationId: org,
+      playerId,
+      overdueMonthlyCount: 0,
+      paidReferenceMonths: [],
+      updatedAt: new Date().toISOString(),
+    })),
+  ],
+  financialWaivers: [
+    {
+      id: 'm5-p2', organizationId: org, matchId: 'm5', playerId: 'p2',
+      reason: 'Pagamento combinado para o próximo encontro.',
+      grantedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+      grantedByUserId: 'user-manager', grantedByName: 'Rafael Torres',
     },
   ],
   financialExpenses: [

@@ -9191,3 +9191,307 @@ img {
     width: 100%;
   }
 }
+
+/* Editable invitations and financial eligibility */
+.financial-match-config {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(230px, 0.8fr) minmax(260px, 1.2fr);
+  align-items: end;
+  gap: 14px;
+  border: 1px solid #304b39;
+  border-radius: 13px;
+  background: #0c1b12;
+}
+
+.financial-match-config--active {
+  border-color: #6b7435;
+  background: linear-gradient(130deg, rgba(236, 193, 73, 0.08), transparent 52%), #0c1b12;
+}
+
+.financial-match-config > p {
+  min-height: 52px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 10px;
+  background: #15291b;
+}
+
+.financial-match-config strong {
+  color: #e8d78a;
+  font-size: 13px;
+}
+
+.financial-match-config small {
+  color: #9fb0a5;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.draw-player-options > label.financially-blocked:not(.selected) {
+  opacity: 0.68;
+  border-color: #573a35;
+  background: #251716;
+}
+
+.draw-player-options label em,
+.attendance-player__identity em {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ee9d94;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.3;
+}
+
+.attendance-player__identity em.financial-waived {
+  color: #e5ca77;
+}
+
+.attendance-player__secondary-actions {
+  grid-column: 2 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.attendance-player__secondary-actions button,
+.participant-editor article > div > button {
+  min-height: 32px;
+  padding: 6px 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #d4e4d8;
+  border: 1px solid #45634d;
+  border-radius: 8px;
+  background: #12261a;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.attendance-player__replace {
+  color: #d9ff91 !important;
+  border-color: #668a3d !important;
+}
+
+.attendance-player__waiver {
+  color: #f0d98c !important;
+  border-color: #786a38 !important;
+}
+
+.attendance-response-card__financial {
+  margin: 0 !important;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #ffaaa2 !important;
+}
+
+.participant-editor__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.participant-editor__summary > span {
+  min-height: 52px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #a9bbb0;
+  border: 1px solid #304d3a;
+  border-radius: 10px;
+  background: #0b1b12;
+  font-size: 11px;
+}
+
+.participant-editor__summary strong {
+  color: #ecf6ee;
+  font-size: 17px;
+}
+
+.participant-editor {
+  max-height: 470px;
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.participant-editor > article {
+  min-width: 0;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) minmax(210px, auto);
+  align-items: center;
+  gap: 9px 12px;
+  border: 1px solid #2d4937;
+  border-radius: 11px;
+  background: #0b1b12;
+}
+
+.participant-editor > article.selected {
+  border-color: #63843f;
+  background: #12271a;
+}
+
+.participant-editor > article.financially-blocked {
+  border-color: #613d38;
+}
+
+.participant-editor article > label {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.participant-editor article > label > input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--lime);
+}
+
+.participant-editor article > label strong,
+.participant-editor article > label small,
+.participant-editor article > label em {
+  display: block;
+}
+
+.participant-editor article > label strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.participant-editor article > label small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.participant-editor article > label em {
+  margin-top: 3px;
+  color: #9eb0a4;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.participant-editor article > div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.participant-editor article > p {
+  margin: 0;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #d9c679;
+  font-size: 10px;
+}
+
+.player-invited-roster {
+  grid-column: 1 / -1;
+}
+
+.player-invited-roster__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.player-invited-roster__list > article {
+  min-width: 0;
+  padding: 11px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #2e4a38;
+  border-radius: 11px;
+  background: #0c1b12;
+}
+
+.player-invited-roster__list > article.is-current {
+  border-color: #789d45;
+  background: #14291a;
+}
+
+.player-invited-roster__list strong,
+.player-invited-roster__list small {
+  display: block;
+}
+
+.player-invited-roster__list strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-invited-roster__list small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .financial-match-config {
+    grid-template-columns: 1fr;
+  }
+
+  .player-invited-roster__list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .participant-editor > article {
+    grid-template-columns: 1fr;
+  }
+
+  .participant-editor article > div {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .participant-editor__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-player__secondary-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .player-invited-roster__list > article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .player-invited-roster__list .badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}

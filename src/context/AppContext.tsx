@@ -28,6 +28,7 @@ import {
 } from '../lib/dataDeletion';
 import { activateUserAccess, db, isFirebaseConfigured, resolveUserProfile, signInWithGoogle, signOutUser, watchAuth } from '../lib/firebase';
 import { deletePublicLeagueSnapshot, syncPublicLeagueSnapshot } from '../lib/publicLeague';
+import { buildFinancialStatus } from '../lib/finance';
 import type { AppData, AuditLog, UserProfile, UserRole } from '../types';
 
 type DataKey = keyof AppData;
@@ -58,7 +59,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-const storageKey = 'baba-manager-demo-data-v8';
+const storageKey = 'baba-manager-demo-data-v9';
 
 const emptyData: AppData = {
   organizations: [],
@@ -72,6 +73,8 @@ const emptyData: AppData = {
   statSubmissions: [],
   financialSettings: [],
   financialCharges: [],
+  financialStatuses: [],
+  financialWaivers: [],
   financialExpenses: [],
   managerInvites: [],
   auditLogs: [],
@@ -149,7 +152,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const firestore = db;
     const organizationId = currentUser.organizationId;
     const standardKeys: DataKey[] = ['teams', 'players', 'venues', 'leagues', 'matches', 'checkins'];
-    const financialKeys: DataKey[] = ['financialSettings', 'financialCharges', 'financialExpenses'];
+    const financialKeys: DataKey[] = ['financialSettings', 'financialCharges', 'financialStatuses', 'financialWaivers', 'financialExpenses'];
     const unsubscribes: Array<() => void> = [];
 
     const subscribe = (key: DataKey, source: Query) => {
@@ -196,6 +199,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         subscribe('statSubmissions', query(collection(firestore, 'statSubmissions'), where('organizationId', '==', organizationId)));
       } else if (currentUser.playerId) {
         subscribe('statSubmissions', query(collection(firestore, 'statSubmissions'), where('playerId', '==', currentUser.playerId)));
+        subscribe('financialStatuses', query(collection(firestore, 'financialStatuses'), where('playerId', '==', currentUser.playerId)));
       }
     }
 
@@ -209,6 +213,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
+
+  useEffect(() => {
+    if (!currentUser?.organizationId || currentUser.role !== 'manager') return;
+    const organizationId = currentUser.organizationId;
+    const organizationPlayers = data.players.filter((player) => player.organizationId === organizationId);
+    if (!organizationPlayers.length) return;
+    const now = new Date();
+    const statuses = organizationPlayers.map((player) => (
+      buildFinancialStatus(organizationId, player.id, data.financialCharges, now)
+    ));
+    const currentStatuses = dataRef.current.financialStatuses.filter((status) => status.organizationId === organizationId);
+    const sameStatus = statuses.every((status) => {
+      const current = currentStatuses.find((item) => item.id === status.id);
+      return current
+        && current.overdueMonthlyCount === status.overdueMonthlyCount
+        && JSON.stringify(current.paidReferenceMonths) === JSON.stringify(status.paidReferenceMonths);
+    }) && currentStatuses.length === statuses.length;
+    if (sameStatus) return;
+
+    const nextData = {
+      ...dataRef.current,
+      financialStatuses: [
+        ...dataRef.current.financialStatuses.filter((status) => status.organizationId !== organizationId),
+        ...statuses,
+      ],
+    };
+    dataRef.current = nextData;
+    setData(nextData);
+    if (db && !isDemo) {
+      void Promise.all(statuses.map((status) => setDoc(
+        doc(db!, 'financialStatuses', status.id),
+        withoutUndefined(status) as Record<string, unknown>,
+      ))).catch((error) => console.error('Falha ao atualizar elegibilidade financeira:', error));
+    }
+  }, [currentUser, data.players, data.financialCharges, isDemo]);
 
   const loginGoogle = useCallback(async () => {
     setAuthLoading(true);

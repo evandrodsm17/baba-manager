@@ -111,6 +111,19 @@ export interface MatchHighlight {
   reason: string;
 }
 
+export type FinancialRequirement = 'none' | 'no_overdue' | 'match_month_paid';
+
+export interface FinancialWaiver {
+  id: string;
+  organizationId: string;
+  matchId: string;
+  playerId: string;
+  reason: string;
+  grantedAt: string;
+  grantedByUserId: string;
+  grantedByName: string;
+}
+
 export interface Match {
   id: string;
   organizationId: string;
@@ -142,6 +155,9 @@ export interface Match {
   requiresConfirmation?: boolean;
   confirmationDeadline?: string;
   confirmationLimit?: number;
+  financialRequirement?: FinancialRequirement;
+  financialReferenceMonth?: string;
+  financialWaiverPlayerIds?: string[];
   events: MatchEvent[];
   highlights?: MatchHighlight[];
   notes?: string;
@@ -241,6 +257,15 @@ export interface FinancialCharge {
   notes?: string;
 }
 
+export interface FinancialStatus {
+  id: string;
+  organizationId: string;
+  playerId: string;
+  overdueMonthlyCount: number;
+  paidReferenceMonths: string[];
+  updatedAt: string;
+}
+
 export interface FinancialExpense {
   id: string;
   organizationId: string;
@@ -288,6 +313,8 @@ export interface AppData {
   statSubmissions: StatSubmission[];
   financialSettings: FinancialSettings[];
   financialCharges: FinancialCharge[];
+  financialStatuses: FinancialStatus[];
+  financialWaivers: FinancialWaiver[];
   financialExpenses: FinancialExpense[];
   managerInvites: ManagerInvite[];
   auditLogs: AuditLog[];

@@ -17,6 +17,9 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - locais com coordenadas e raio autorizado para check-in;
 - partidas agendadas, ao vivo e finalizadas;
 - partidas entre equipes fixas ou com times temporários sorteados entre os jogadores selecionados;
+- convocação editável em partidas sorteadas, com substituição de ausentes e preservação da ordem dos check-ins;
+- regra financeira opcional por partida, com liberação excepcional justificada pelo gerenciador;
+- relação de convocados e respostas visível aos jogadores participantes;
 - súmula editável com gols, assistências, cartões e gol contra;
 - placar calculado automaticamente pelos eventos de gol;
 - finalização com bloqueio da súmula e reabertura controlada pelo gerenciador;
@@ -394,20 +397,22 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 6. Crie uma liga e, se desejar, informe a URL de uma imagem de capa. Uma liga existente pode ser atualizada com **Editar liga**.
 7. Agende uma partida entre equipes fixas ou escolha **Times sorteados**, informe o limite por equipe e selecione ao menos dois goleiros entre os participantes. Jogadores sem equipe também podem ser selecionados.
 8. Mantenha **Solicitar confirmação antecipada** ativado e informe o prazo para os jogadores responderem.
-9. Abra a partida para acompanhar confirmados, fila de espera, respostas “Talvez”, ausências e jogadores que ainda não responderam.
-10. Use **Copiar lembrete** para enviar a convocação no grupo do baba. O link direciona o jogador autenticado para a área **Presença**.
-11. Abra a partida e adicione os gols como eventos da súmula; autor e assistência são opcionais.
-12. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
-13. Edite ou remova eventos enquanto a partida estiver aberta e confira o placar calculado.
-14. Clique em **Finalizar partida** para bloquear a súmula. Para corrigir algo depois, use **Reabrir partida**.
-15. Em **Destaques**, escolha opcionalmente de um a três jogadores, marque o destaque como positivo ou negativo e informe a justificativa.
-15. Em **Ligas**, use **Publicar liga** para gerar a página externa e copie o link exibido.
+9. Escolha, se desejar, uma **Regra financeira da partida**. Ela é aplicada somente aos mensalistas.
+10. Abra a partida para acompanhar confirmados, fila de espera, respostas “Talvez”, ausências e jogadores que ainda não responderam.
+11. Use **Editar convocados** para retirar um ausente ou incluir um substituto. O atalho **Convidar substituto** já abre a lista sem o jogador que respondeu “Não vou”.
+12. Use **Copiar lembrete** para enviar a convocação no grupo do baba. O link direciona o jogador autenticado para a área **Presença**.
+13. Abra a partida e adicione os gols como eventos da súmula; autor e assistência são opcionais.
+14. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
+15. Edite ou remova eventos enquanto a partida estiver aberta e confira o placar calculado.
+16. Clique em **Finalizar partida** para bloquear a súmula. Para corrigir algo depois, use **Reabrir partida**.
+17. Em **Destaques**, escolha opcionalmente de um a três jogadores, marque o destaque como positivo ou negativo e informe a justificativa.
+18. Em **Ligas**, use **Publicar liga** para gerar a página externa e copie o link exibido.
 
 Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google. A equipe é opcional: deixe o campo vazio quando o atleta participar somente de jogos com times sorteados.
 
 No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os dois times existem somente naquela partida e podem receber nomes e cores próprios para representar os coletes utilizados. A confirmação “Vou” reserva uma vaga até o limite configurado; quem exceder o limite entra na fila de espera e é promovido automaticamente quando houver desistência. Mensalistas e jogadores sem classificação ficam antes dos convidados. Depois, a primeira formação respeita a ordem dos check-ins validados, novamente mantendo convidados depois dos demais. O sistema reserva um goleiro para cada equipe e somente forma os times depois que dois jogadores da posição confirmarem presença e fizerem check-in.
 
-O gerenciador pode usar **Personalizar times** para corrigir nomes e cores sem alterar a escalação ou a súmula. Enquanto a partida estiver agendada, também pode usar **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
+O gerenciador pode usar **Editar convocados** enquanto a partida estiver agendada. Ao remover alguém, o sistema informa quantas respostas e quantos check-ins serão excluídos; os novos convidados são acrescentados ao fim da ordem do sorteio e os check-ins dos demais permanecem intactos. Ainda é obrigatório manter ao menos dois goleiros na convocação. O gerenciador também pode usar **Personalizar times** para corrigir nomes e cores sem alterar a escalação ou a súmula e **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
 
 Se um jogador estiver sem celular ou internet, o gerenciador pode usar **Confirmar check-in** na relação de jogadores da partida. Esse registro manual ignora a exigência de geolocalização, utiliza o horário em que o gerenciador confirmou a presença e fica identificado no sistema para auditoria. Ele continua limitado à janela de check-in da partida, que usa 30 minutos antes e 20 minutos depois como padrão e pode ser alterada em **Configurar check-in**. Se a escalação do sorteio já estiver fechada, o jogador será incluído na fila de espera sem alterar os times.
 
@@ -428,6 +433,8 @@ O menu **Financeiro** fica disponível para o gerenciador da organização e nã
 7. Cadastre custos em **Nova despesa**, como local, arbitragem ou materiais.
 
 A geração mensal não duplica uma cobrança ativa para o mesmo jogador e competência. O painel apresenta valores previstos, recebidos, atrasados, despesas pagas e saldo realizado. Recebimentos e pagamentos podem ser estornados, e lançamentos incorretos podem ser cancelados sem apagar o histórico.
+
+Em cada partida, a regra financeira pode permanecer desativada, exigir que não exista mensalidade vencida ou exigir que a competência do mês da partida esteja paga. A validação ocorre ao responder **Vou** e no check-in. Convidados e jogadores sem classificação financeira não são bloqueados. O gerenciador pode conceder uma liberação excepcional com justificativa; a ação fica registrada para auditoria, mas o motivo e a situação financeira individual não aparecem para os demais jogadores.
 
 O autor do gol nunca pode ser selecionado também como autor da assistência. Em gols contra, o autor opcional pertence à equipe adversária da equipe beneficiada. O gol contra altera o placar, mas não entra na artilharia do jogador.
 
@@ -473,10 +480,11 @@ Ela apresenta classificação, jogos agendados e finalizados, placares, eventos 
 4. Abra **Presença**.
 5. Responda **Vou**, **Talvez** ou **Não vou** antes do prazo informado.
 6. Se as vagas estiverem preenchidas, acompanhe sua posição na fila de espera. A promoção acontece automaticamente quando alguém desiste.
-7. Quando estiver com a vaga confirmada e dentro da janela permitida, faça o check-in e autorize o acesso à localização do navegador se a partida exigir.
-8. Consulte **Meu desempenho** para ver partidas, gols, assistências, cartões e destaques recebidos.
-9. Em uma partida finalizada em que participou, envie seus gols e assistências.
-10. Volte ao acesso **Gerenciador** para aprovar ou recusar a declaração. Como uma aprovação altera a súmula oficial, reabra antes uma partida já finalizada.
+7. Abra os detalhes da partida para consultar todos os convocados e identificar quem confirmou, está na fila, respondeu “Talvez”, não irá ou ainda não respondeu.
+8. Quando estiver com a vaga confirmada, financeiramente liberado e dentro da janela permitida, faça o check-in e autorize o acesso à localização do navegador se a partida exigir.
+9. Consulte **Meu desempenho** para ver partidas, gols, assistências, cartões e destaques recebidos.
+10. Em uma partida finalizada em que participou, envie seus gols e assistências.
+11. Volte ao acesso **Gerenciador** para aprovar ou recusar a declaração. Como uma aprovação altera a súmula oficial, reabra antes uma partida já finalizada.
 
 A geolocalização funciona em `localhost` durante o desenvolvimento e em páginas HTTPS, como as publicadas pela Vercel.
 
@@ -499,6 +507,8 @@ O sistema cria e utiliza as seguintes coleções:
 | `statSubmissions` | Gols e assistências declarados pelos jogadores e seu status de aprovação |
 | `financialSettings` | Valor padrão, vencimento e ativação do controle mensal |
 | `financialCharges` | Mensalidades, cobranças avulsas e recebimentos |
+| `financialStatuses` | Resumo de elegibilidade financeira usado nas confirmações e check-ins |
+| `financialWaivers` | Liberações excepcionais por partida, com justificativa restrita à gestão |
 | `financialExpenses` | Despesas, pagamentos e custos da organização |
 | `publicLeagues` | Cópias sanitizadas das ligas publicadas e suas partidas |
 | `auditLogs` | Atividades administrativas |

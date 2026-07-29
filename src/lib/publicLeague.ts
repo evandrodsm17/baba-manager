@@ -40,10 +40,12 @@ export function buildPublicLeagueSnapshot(data: AppData, league: League) {
   const now = new Date().toISOString();
   const publicMatches: PublicMatch[] = matches.map((match) => {
     const venue = venues.get(match.venueId);
-    return {
+    const publicMatch: PublicMatch = {
       ...match,
       ...(venue ? { venueName: venue.name, venueAddress: venue.address } : {}),
     };
+    delete publicMatch.financialWaiverPlayerIds;
+    return publicMatch;
   });
   const snapshot: PublicLeagueSnapshot = {
     id: league.id,

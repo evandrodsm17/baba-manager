@@ -14,7 +14,9 @@ type PersistedDataKey =
   | DeletableDataKey
   | 'checkins'
   | 'matchConfirmations'
-  | 'statSubmissions';
+  | 'statSubmissions'
+  | 'financialStatuses'
+  | 'financialWaivers';
 
 export interface DeletedDocument {
   key: PersistedDataKey;
@@ -47,6 +49,8 @@ const persistedKeys: PersistedDataKey[] = [
   'statSubmissions',
   'financialSettings',
   'financialCharges',
+  'financialStatuses',
+  'financialWaivers',
   'financialExpenses',
 ];
 
@@ -63,6 +67,8 @@ function cloneContent(data: AppData): AppData {
     statSubmissions: [...data.statSubmissions],
     financialSettings: [...data.financialSettings],
     financialCharges: [...data.financialCharges],
+    financialStatuses: [...data.financialStatuses],
+    financialWaivers: [...data.financialWaivers],
     financialExpenses: [...data.financialExpenses],
   };
 }
@@ -73,6 +79,7 @@ function deleteMatches(next: AppData, matchIds: Set<string>) {
   next.checkins = next.checkins.filter((checkin) => !matchIds.has(checkin.matchId));
   next.matchConfirmations = next.matchConfirmations.filter((confirmation) => !matchIds.has(confirmation.matchId));
   next.statSubmissions = next.statSubmissions.filter((submission) => !matchIds.has(submission.matchId));
+  next.financialWaivers = next.financialWaivers.filter((waiver) => !matchIds.has(waiver.matchId));
 }
 
 function deletePlayers(next: AppData, playerIds: Set<string>) {
@@ -86,6 +93,8 @@ function deletePlayers(next: AppData, playerIds: Set<string>) {
   next.matchConfirmations = next.matchConfirmations.filter((confirmation) => !playerIds.has(confirmation.playerId));
   next.statSubmissions = next.statSubmissions.filter((submission) => !playerIds.has(submission.playerId));
   next.financialCharges = next.financialCharges.filter((charge) => !playerIds.has(charge.playerId));
+  next.financialStatuses = next.financialStatuses.filter((status) => !playerIds.has(status.playerId));
+  next.financialWaivers = next.financialWaivers.filter((waiver) => !playerIds.has(waiver.playerId));
   next.matches = next.matches.map((match) => ({
     ...match,
     selectedPlayerIds: match.selectedPlayerIds?.filter((playerId) => !playerIds.has(playerId)),
@@ -93,6 +102,7 @@ function deletePlayers(next: AppData, playerIds: Set<string>) {
     awayPlayerIds: match.awayPlayerIds?.filter((playerId) => !playerIds.has(playerId)),
     waitingPlayerIds: match.waitingPlayerIds?.filter((playerId) => !playerIds.has(playerId)),
     drawOrder: match.drawOrder?.filter((playerId) => !playerIds.has(playerId)),
+    financialWaiverPlayerIds: match.financialWaiverPlayerIds?.filter((playerId) => !playerIds.has(playerId)),
     highlights: match.highlights?.filter((highlight) => !playerIds.has(highlight.playerId)),
     events: match.events
       .filter((event) => !((event.type === 'yellow' || event.type === 'red') && event.playerId && playerIds.has(event.playerId)))

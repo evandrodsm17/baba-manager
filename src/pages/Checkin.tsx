@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { MatchCard } from '../components/MatchCard';
 import { Badge, Button, EmptyState, PageHeader, SuccessSeal } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
+import { getFinancialEligibility } from '../lib/finance';
 import {
   buildConfirmationQueue,
   buildDrawLineup,
@@ -61,13 +62,21 @@ export function CheckinPage() {
   const hasConfirmedSpot = Boolean(player && confirmationQueue?.confirmedPlayerIds.includes(player.id));
   const isConfirmationWaitlisted = Boolean(player && confirmationQueue?.waitingPlayerIds.includes(player.id));
   const deadlinePassed = nextMatch ? confirmationDeadlinePassed(nextMatch) : false;
-  const checkinAllowed = !nextMatch?.requiresConfirmation || hasConfirmedSpot;
+  const confirmationAllowsCheckin = !nextMatch?.requiresConfirmation || hasConfirmedSpot;
+  const financialEligibility = nextMatch && player
+    ? getFinancialEligibility(nextMatch, player, data.financialStatuses)
+    : { required: false, eligible: true, waived: false };
+  const checkinAllowed = confirmationAllowsCheckin && financialEligibility.eligible;
   const checkinWindow = nextMatch ? getCheckinWindow(nextMatch) : null;
 
   const saveAttendance = async (status: AttendanceStatus) => {
     if (!nextMatch || !player || !currentUser || !nextMatch.requiresConfirmation) return;
     if (existing) {
       notify('Sua presença já foi validada. Fale com o gerenciador se precisar cancelar.', 'info');
+      return;
+    }
+    if (status === 'going' && !financialEligibility.eligible) {
+      notify(`Não é possível confirmar presença: ${financialEligibility.reason}.`, 'error');
       return;
     }
     if (deadlinePassed || nextMatch.status !== 'scheduled') {
@@ -142,7 +151,9 @@ export function CheckinPage() {
     }
     if (!checkinAllowed) {
       notify(
-        isConfirmationWaitlisted
+        !financialEligibility.eligible
+          ? `Check-in bloqueado: ${financialEligibility.reason}.`
+          : isConfirmationWaitlisted
           ? 'Você ainda está na fila de espera. Aguarde a liberação de uma vaga.'
           : 'Confirme “Vou” e garanta uma vaga antes de fazer check-in.',
         'error',
@@ -243,7 +254,7 @@ export function CheckinPage() {
             <button
               type="button"
               className={confirmation?.status === 'going' ? 'active active--going' : ''}
-              disabled={confirmationLocked || Boolean(responding)}
+              disabled={confirmationLocked || Boolean(responding) || !financialEligibility.eligible}
               onClick={() => saveAttendance('going')}
             >
               <Check size={18} /><span><strong>Vou</strong><small>Quero uma vaga</small></span>
@@ -265,6 +276,11 @@ export function CheckinPage() {
               <X size={18} /><span><strong>Não vou</strong><small>Liberar minha vaga</small></span>
             </button>
           </div>
+          {!financialEligibility.eligible && (
+            <p className="attendance-response-card__financial">
+              <ShieldCheck size={15} /> Presença bloqueada: {financialEligibility.reason}. Procure o gerenciador.
+            </p>
+          )}
           {confirmationLocked && !existing && <p className="attendance-response-card__locked"><Clock3 size={15} /> O prazo terminou. O gerenciador ainda pode atualizar sua resposta.</p>}
         </section>
       )}
@@ -295,7 +311,14 @@ export function CheckinPage() {
                 </p>
                 <Badge tone={drawTeamName ? 'success' : 'warning'}><ShieldCheck size={14} /> {drawTeamName || (waitingForDraw ? 'Fila de espera' : 'Presença registrada')}</Badge>
               </div>
-            ) : !checkinAllowed ? (
+            ) : !financialEligibility.eligible ? (
+              <div className="checkin-message checkin-message--error">
+                <span><ShieldCheck size={25} /></span>
+                <h2>Participação bloqueada</h2>
+                <p>{financialEligibility.reason}. Regularize a situação ou solicite uma liberação excepcional ao gerenciador.</p>
+                <Badge tone="danger">Mensalidade pendente</Badge>
+              </div>
+            ) : !confirmationAllowsCheckin ? (
               <div className="checkin-message">
                 <span><Hourglass size={25} /></span>
                 <h2>{isConfirmationWaitlisted ? 'Aguardando uma vaga' : 'Confirme sua participação'}</h2>

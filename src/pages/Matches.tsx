@@ -30,6 +30,7 @@ import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
+import { financialRequirementLabel, getFinancialEligibility } from '../lib/finance';
 import {
   buildConfirmationQueue,
   buildDrawLineup,
@@ -43,7 +44,7 @@ import {
   shufflePlayerIds,
 } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
-import type { Checkin, EventType, Match, MatchConfirmation, MatchEvent, MatchHighlight, MatchType, StatSubmission } from '../types';
+import type { Checkin, EventType, FinancialRequirement, Match, MatchConfirmation, MatchEvent, MatchHighlight, MatchType, Player, StatSubmission } from '../types';
 
 export function Matches() {
   const params = useParams();
@@ -71,6 +72,7 @@ function MatchesList() {
   const [confirmationDeadlineTouched, setConfirmationDeadlineTouched] = useState(false);
   const [checkinOpensMinutesBefore, setCheckinOpensMinutesBefore] = useState(30);
   const [checkinClosesMinutesAfter, setCheckinClosesMinutesAfter] = useState(20);
+  const [financialRequirement, setFinancialRequirement] = useState<FinancialRequirement>('none');
   const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
@@ -84,6 +86,17 @@ function MatchesList() {
     selectedPlayerIds.includes(player.id)
     && player.positions.some((position) => position.toLocaleLowerCase('pt-BR') === 'goleiro')
   )).length;
+  const financialReferenceMonth = startsAt.slice(0, 7) || new Date().toISOString().slice(0, 7);
+  const financialMatchConfig = {
+    startsAt: startsAt ? new Date(startsAt).toISOString() : new Date().toISOString(),
+    financialRequirement,
+    financialReferenceMonth,
+    financialWaiverPlayerIds: [],
+  };
+  const financiallyBlockedSelectedPlayers = availablePlayers.filter((player) => (
+    selectedPlayerIds.includes(player.id)
+    && !getFinancialEligibility(financialMatchConfig, player, data.financialStatuses).eligible
+  ));
   const canSchedule = venues.length > 0 && (
     matchType === 'draw'
       ? selectedPlayerIds.length >= 2 && selectedGoalkeeperCount >= 2 && maxPlayersPerTeam >= 1
@@ -115,6 +128,7 @@ function MatchesList() {
     setConfirmationDeadlineTouched(false);
     setCheckinOpensMinutesBefore(30);
     setCheckinClosesMinutesAfter(20);
+    setFinancialRequirement('none');
     setScheduleError('');
     setModalOpen(true);
   };
@@ -144,6 +158,10 @@ function MatchesList() {
     }
     if (matchType === 'draw' && maxPlayersPerTeam < 1) {
       setScheduleError('Informe ao menos um jogador por equipe.');
+      return;
+    }
+    if (matchType === 'draw' && financiallyBlockedSelectedPlayers.length > 0) {
+      setScheduleError(`Remova os jogadores com pendência financeira: ${financiallyBlockedSelectedPlayers.map(playerDisplayName).join(', ')}.`);
       return;
     }
     if (requiresConfirmation && !confirmationDeadline) {
@@ -187,6 +205,11 @@ function MatchesList() {
       checkinClosesMinutesAfter,
       checkinOpensAtMs: startsAtMs - checkinOpensMinutesBefore * 60_000,
       checkinClosesAtMs: startsAtMs + checkinClosesMinutesAfter * 60_000,
+      financialRequirement,
+      ...(financialRequirement !== 'none' ? {
+        financialReferenceMonth: startsAt.slice(0, 7),
+        financialWaiverPlayerIds: [],
+      } : {}),
       requiresConfirmation,
       ...(requiresConfirmation ? {
         confirmationDeadline: new Date(confirmationDeadline).toISOString(),
@@ -289,15 +312,21 @@ function MatchesList() {
                 {availablePlayers.map((player) => {
                   const team = teams.find((item) => item.id === player.teamId);
                   const selected = selectedPlayerIds.includes(player.id);
+                  const financialEligibility = getFinancialEligibility(financialMatchConfig, player, data.financialStatuses);
                   return (
-                    <label key={player.id} className={selected ? 'selected' : ''}>
+                    <label key={player.id} className={`${selected ? 'selected' : ''} ${!financialEligibility.eligible ? 'financially-blocked' : ''}`}>
                       <input
                         type="checkbox"
                         checked={selected}
+                        disabled={!selected && !financialEligibility.eligible}
                         onChange={() => setSelectedPlayerIds((current) => current.includes(player.id) ? current.filter((id) => id !== player.id) : [...current, player.id])}
                       />
                       <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
-                      <span><strong>{playerDisplayName(player)}</strong><small>{player.membershipType === 'subscriber' ? 'Mensalista' : player.membershipType === 'guest' ? 'Convidado' : 'Sem classificação'} · {player.positions.join('/')} · {team?.shortName || 'Sem equipe'}</small></span>
+                      <span>
+                        <strong>{playerDisplayName(player)}</strong>
+                        <small>{player.membershipType === 'subscriber' ? 'Mensalista' : player.membershipType === 'guest' ? 'Convidado' : 'Sem classificação'} · {player.positions.join('/')} · {team?.shortName || 'Sem equipe'}</small>
+                        {!financialEligibility.eligible && <em>{financialEligibility.reason}</em>}
+                      </span>
                       <i><Check size={14} /></i>
                     </label>
                   );
@@ -394,6 +423,26 @@ function MatchesList() {
                 </p>
               </div>
             )}
+          </div>
+          <div className={`financial-match-config ${financialRequirement !== 'none' ? 'financial-match-config--active' : ''}`}>
+            <label>
+              <span>Regra financeira da partida</span>
+              <select
+                value={financialRequirement}
+                onChange={(event) => {
+                  setFinancialRequirement(event.target.value as FinancialRequirement);
+                  setScheduleError('');
+                }}
+              >
+                <option value="none">Não exigir situação financeira</option>
+                <option value="no_overdue">Exigir ausência de mensalidade vencida</option>
+                <option value="match_month_paid">Exigir competência da partida paga</option>
+              </select>
+            </label>
+            <p>
+              <strong>{financialRequirementLabel(financialRequirement)}</strong>
+              <small>A regra vale somente para mensalistas. Convidados e jogadores sem classificação permanecem liberados.</small>
+            </p>
           </div>
           {matchType === 'teams' && <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>}
           <label className="toggle-field"><input type="checkbox" name="requiresGeolocation" /><i /><span><strong>Exigir geolocalização no check-in</strong><small>O jogador deverá estar dentro do raio definido no local.</small></span></label>
@@ -503,6 +552,21 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const pendingSubmissions = data.statSubmissions.filter((submission) => (
     submission.matchId === match.id && submission.status === 'pending'
   ));
+  const invitationOrder = new Map<string, number>();
+  [
+    confirmationQueue.confirmedPlayerIds,
+    confirmationQueue.waitingPlayerIds,
+    confirmationQueue.pendingPlayerIds,
+    confirmationQueue.maybePlayerIds,
+    confirmationQueue.declinedPlayerIds,
+  ].forEach((group, groupIndex) => group.forEach((playerId, index) => invitationOrder.set(playerId, groupIndex * 1000 + index)));
+  const invitedPlayers = confirmationQueue.eligiblePlayerIds
+    .map((playerId) => data.players.find((player) => player.id === playerId))
+    .filter((player): player is Player => Boolean(player))
+    .sort((a, b) => (
+      (invitationOrder.get(a.id) ?? 9999) - (invitationOrder.get(b.id) ?? 9999)
+      || playerDisplayName(a).localeCompare(playerDisplayName(b), 'pt-BR')
+    ));
   if (!home || !away) return null;
   const drawAssignment = isDrawMatch(match) ? {
     homePlayerIds: effectiveHomePlayerIds,
@@ -520,6 +584,11 @@ function MatchDetails({ matchId }: { matchId: string }) {
     );
     if (!player || !eligible) {
       notify('Este jogador não faz parte da partida.', 'error');
+      return;
+    }
+    const financialEligibility = getFinancialEligibility(match, player, data.financialStatuses);
+    if (!financialEligibility.eligible) {
+      notify(`Check-in bloqueado: ${financialEligibility.reason}.`, 'error');
       return;
     }
     if (!checkinWindow.isOpen) {
@@ -875,6 +944,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
           <span><MapPin size={16} />{venue?.name}</span>
           {match.requiresGeolocation && <span><Radio size={16} />Check-in geolocalizado</span>}
           <span><Clock3 size={16} />Check-in: {checkinWindow.opensMinutesBefore} min antes · {checkinWindow.closesMinutesAfter} min depois</span>
+          {match.financialRequirement && match.financialRequirement !== 'none' && <span><ShieldAlert size={16} />{financialRequirementLabel(match.financialRequirement)}</span>}
         </div>
         {canManage && (
           <div className="match-detail-hero__actions">
@@ -984,6 +1054,42 @@ function MatchDetails({ matchId }: { matchId: string }) {
           </section>
         )}
         {canManage && <AttendanceManager match={match} />}
+        {currentUser?.role === 'player' && activePlayer && matchIncludesPlayer(match, activePlayer) && match.requiresConfirmation && (
+          <section className="panel player-invited-roster">
+            <div className="section-header">
+              <div><h2>Convocados para a partida</h2><p>Veja quem confirmou, está na fila ou ainda não respondeu</p></div>
+              <Badge tone="neutral">{invitedPlayers.length} convocado{invitedPlayers.length === 1 ? '' : 's'}</Badge>
+            </div>
+            <div className="player-invited-roster__list">
+              {invitedPlayers.map((player) => {
+                const confirmation = confirmationQueue.confirmationByPlayerId.get(player.id);
+                const team = data.teams.find((item) => item.id === player.teamId);
+                const isCurrentPlayer = player.id === activePlayer?.id;
+                const status = confirmation?.status;
+                return (
+                  <article key={player.id} className={isCurrentPlayer ? 'is-current' : ''}>
+                    <Avatar name={player.name} src={player.photoUrl} size="sm" tone={team?.color} />
+                    <span>
+                      <strong>{playerDisplayName(player)}{isCurrentPlayer ? ' · Você' : ''}</strong>
+                      <small>{player.positions.join(', ')}{team ? ` · ${team.shortName}` : ' · Sem equipe fixa'}</small>
+                    </span>
+                    {confirmationQueue.confirmedPlayerIds.includes(player.id) ? (
+                      <Badge tone="success" dot>Presença confirmada</Badge>
+                    ) : confirmationQueue.waitingPlayerIds.includes(player.id) ? (
+                      <Badge tone="warning" dot>Confirmou · fila de espera</Badge>
+                    ) : status === 'maybe' ? (
+                      <Badge tone="blue" dot>Talvez</Badge>
+                    ) : status === 'declined' ? (
+                      <Badge tone="danger" dot>Não vai</Badge>
+                    ) : (
+                      <Badge tone="neutral" dot>Ainda não respondeu</Badge>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
         <section className="panel match-rosters">
           <div className="section-header">
             <div><h2>Jogadores e check-in</h2><p>{isDrawMatch(match) ? 'Prioridade por ordem de check-in, com convidados depois dos demais' : 'Presença dos elencos nesta partida'}</p></div>

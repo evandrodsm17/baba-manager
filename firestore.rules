@@ -186,6 +186,30 @@ service cloud.firestore {
         );
     }
 
+    function validFinancialParticipation(matchData, playerId) {
+      let playerData = get(/databases/$(database)/documents/players/$(playerId)).data;
+      let statusId = matchData.organizationId + '-' + playerId;
+      let requirement = matchData.get('financialRequirement', 'none');
+      return requirement == 'none'
+        || playerData.get('membershipType', '') != 'subscriber'
+        || playerId in matchData.get('financialWaiverPlayerIds', [])
+        || (
+          exists(/databases/$(database)/documents/financialStatuses/$(statusId))
+          && (
+            (
+              requirement == 'no_overdue'
+              && get(/databases/$(database)/documents/financialStatuses/$(statusId)).data.overdueMonthlyCount == 0
+            )
+            ||
+            (
+              requirement == 'match_month_paid'
+              && matchData.financialReferenceMonth
+                in get(/databases/$(database)/documents/financialStatuses/$(statusId)).data.paidReferenceMonths
+            )
+          )
+        );
+    }
+
     match /users/{userId} {
       allow read: if isMaster() || (signedIn() && request.auth.uid == userId);
 
@@ -279,6 +303,10 @@ service cloud.firestore {
         || (
           validCheckinParticipant(request.resource.data)
           && validCheckinWindow(request.resource.data)
+          && validFinancialParticipation(
+            get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data,
+            request.resource.data.playerId
+          )
           && request.resource.data.validated == true
           && (
             (
@@ -300,6 +328,10 @@ service cloud.firestore {
           isManager()
           && sameOrganization(resource.data)
           && validCheckinWindow(request.resource.data)
+          && validFinancialParticipation(
+            get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data,
+            request.resource.data.playerId
+          )
           && request.resource.data.organizationId == resource.data.organizationId
           && request.resource.data.matchId == resource.data.matchId
           && request.resource.data.playerId == resource.data.playerId
@@ -312,6 +344,13 @@ service cloud.firestore {
 
       allow create: if validConfirmationParticipant(request.resource.data)
         && request.resource.data.status in ['going', 'maybe', 'declined']
+        && (
+          request.resource.data.status != 'going'
+          || validFinancialParticipation(
+            get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data,
+            request.resource.data.playerId
+          )
+        )
         && get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.status == 'scheduled'
         && (
           (
@@ -333,6 +372,13 @@ service cloud.firestore {
         && request.resource.data.matchId == resource.data.matchId
         && request.resource.data.playerId == resource.data.playerId
         && request.resource.data.status in ['going', 'maybe', 'declined']
+        && (
+          request.resource.data.status != 'going'
+          || validFinancialParticipation(
+            get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data,
+            request.resource.data.playerId
+          )
+        )
         && (
           (
             isPlayer()
@@ -428,6 +474,39 @@ service cloud.firestore {
         && request.resource.data.playerId == resource.data.playerId
         && request.resource.data.amount is number
         && request.resource.data.amount > 0;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /financialStatuses/{documentId} {
+      allow read: if isMaster()
+        || (isManager() && sameOrganization(resource.data))
+        || (
+          isPlayer()
+          && sameOrganization(resource.data)
+          && resource.data.playerId == profile().playerId
+        );
+      allow create: if managerCanWrite(request.resource.data)
+        && request.resource.data.overdueMonthlyCount is int
+        && request.resource.data.overdueMonthlyCount >= 0;
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.playerId == resource.data.playerId
+        && request.resource.data.overdueMonthlyCount is int
+        && request.resource.data.overdueMonthlyCount >= 0;
+      allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
+    }
+
+    match /financialWaivers/{documentId} {
+      allow read: if isMaster() || (isManager() && sameOrganization(resource.data));
+      allow create: if managerCanWrite(request.resource.data)
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0;
+      allow update: if managerCanWrite(request.resource.data)
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.matchId == resource.data.matchId
+        && request.resource.data.playerId == resource.data.playerId
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0;
       allow delete: if isMaster() || (isManager() && sameOrganization(resource.data));
     }
 
