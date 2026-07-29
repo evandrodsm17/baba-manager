@@ -3713,6 +3713,7 @@ img {
 }
 
 .public-match {
+  scroll-margin-top: 92px;
   overflow: hidden;
   border: 1px solid #294333;
   border-radius: 15px;
@@ -3726,7 +3727,7 @@ img {
 .public-match__summary {
   padding: 17px 20px;
   display: grid;
-  grid-template-columns: minmax(180px, 0.75fr) minmax(370px, 1.2fr) minmax(110px, 0.35fr);
+  grid-template-columns: minmax(180px, 0.75fr) minmax(370px, 1.2fr) minmax(140px, 0.35fr);
   align-items: center;
   gap: 18px;
 }
@@ -3786,17 +3787,36 @@ img {
   font-style: normal;
 }
 
-.public-match__summary > button {
+.public-match__actions {
+  display: grid;
+  gap: 6px;
+}
+
+.public-match__actions > button {
+  min-height: 32px;
+  padding: 0 10px;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 6px;
   border: 0;
-  color: #c3eb70;
-  background: transparent;
+  border-radius: 8px;
+  color: #d5e3d9;
+  background: #182d20;
   cursor: pointer;
   font-size: 11px;
   font-weight: 750;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.public-match__actions > button:last-child {
+  color: #c3eb70;
+  background: transparent;
+}
+
+.public-match__actions > button:hover {
+  color: #eff8f1;
+  background: #25402c;
 }
 
 .public-match__events {
@@ -3986,8 +4006,10 @@ img {
     flex-wrap: wrap;
   }
 
-  .public-match__summary > button {
-    justify-content: center;
+  .public-match__actions {
+    width: min(100%, 330px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-self: end;
   }
 }
 
@@ -4112,6 +4134,11 @@ img {
 
   .public-match__summary {
     padding: 15px;
+  }
+
+  .public-match__actions {
+    width: 100%;
+    justify-self: stretch;
   }
 
   .public-match__score {

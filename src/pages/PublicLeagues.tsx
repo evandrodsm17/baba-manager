@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronUp,
   Clock3,
@@ -18,7 +19,7 @@ import {
   Footprints,
 } from 'lucide-react';
 import { TbRectangleVerticalFilled } from "react-icons/tb";
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Avatar, Badge, Button, EmptyState, Logo, SoccerBallIcon, TeamMark } from '../components/UI';
 import { useApp } from '../context/AppContext';
 import { db } from '../lib/firebase';
@@ -46,6 +47,13 @@ interface PublicLeagueDetail {
   matches: PublicMatch[];
 }
 
+type ShareStatus = 'shared' | 'copied' | 'error';
+
+interface ShareFeedback {
+  target: string;
+  status: ShareStatus;
+}
+
 function statusLabel(status: PublicMatch['status']) {
   if (status === 'finished') return 'Finalizada';
   if (status === 'live') return 'Em andamento';
@@ -57,6 +65,49 @@ function eventLabel(event: MatchEvent) {
   if (event.type === 'assist') return 'Assistência';
   if (event.type === 'yellow') return 'Cartão amarelo';
   return 'Cartão vermelho';
+}
+
+async function copyPublicLink(url: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      return;
+    }
+  } catch {
+    // Alguns navegadores expõem a API, mas bloqueiam seu uso. O fallback cobre esse caso.
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = url;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand('copy');
+  textarea.remove();
+  if (!copied) throw new Error('Não foi possível copiar o link.');
+}
+
+async function sharePublicContent(data: ShareData & { url: string }): Promise<Exclude<ShareStatus, 'error'> | null> {
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share(data);
+      return 'shared';
+    } catch (shareError) {
+      if ((shareError as { name?: string })?.name === 'AbortError') return null;
+    }
+  }
+
+  await copyPublicLink(data.url);
+  return 'copied';
+}
+
+function shareLabel(feedback: ShareFeedback | null, target: string, idleLabel: string) {
+  if (feedback?.target !== target) return idleLabel;
+  if (feedback.status === 'shared') return 'Compartilhado';
+  if (feedback.status === 'copied') return 'Link copiado';
+  return 'Tentar novamente';
 }
 
 export function PublicLeagues({ leagueId }: { leagueId?: string }) {
@@ -224,7 +275,8 @@ function PublicLeagueDetailPage({
   onBack: () => void;
 }) {
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
-  const [shared, setShared] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
+  const shareFeedbackTimer = useRef<number | null>(null);
   const league = detail?.league;
   const matches = useMemo(
     () => [...(detail?.matches || [])].sort((a, b) => +new Date(b.startsAt) - +new Date(a.startsAt)),
@@ -254,23 +306,52 @@ function PublicLeagueDetailPage({
   const totalGoals = stats.reduce((total, player) => total + player.goals, 0);
   const totalAssists = stats.reduce((total, player) => total + player.assists, 0);
 
-  const share = async () => {
+  useEffect(() => {
+    return () => {
+      if (shareFeedbackTimer.current) window.clearTimeout(shareFeedbackTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!matches.length || !window.location.hash) return;
+    let hash = '';
+    try {
+      hash = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      return;
+    }
+    if (!hash.startsWith('partida-')) return;
+    const matchId = hash.slice('partida-'.length);
+    if (!matches.some((match) => match.id === matchId)) return;
+    setExpandedMatch(matchId);
+    window.requestAnimationFrame(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [matches]);
+
+  const runShare = async (target: string, shareData: ShareData & { url: string }) => {
+    if (shareFeedbackTimer.current) window.clearTimeout(shareFeedbackTimer.current);
+    try {
+      const result = await sharePublicContent(shareData);
+      if (!result) return;
+      setShareFeedback({ target, status: result });
+    } catch {
+      setShareFeedback({ target, status: 'error' });
+    }
+    shareFeedbackTimer.current = window.setTimeout(() => setShareFeedback(null), 2500);
+  };
+
+  const shareLeague = async () => {
     if (!league) return;
-    const shareData = {
+    const leagueUrl = new URL(window.location.href);
+    leagueUrl.hash = '';
+    await runShare('league', {
       title: `${league.name} · AdminFut`,
       text: league.format === 'draw'
         ? `Acompanhe os babas e os rankings individuais de ${league.name}.`
         : `Acompanhe a classificação e os resultados da ${league.name}.`,
-      url: window.location.href,
-    };
-    try {
-      if (navigator.share) await navigator.share(shareData);
-      else await navigator.clipboard.writeText(window.location.href);
-      setShared(true);
-      window.setTimeout(() => setShared(false), 2500);
-    } catch {
-      setShared(false);
-    }
+      url: leagueUrl.toString(),
+    });
   };
 
   if (error || !league) {
@@ -307,7 +388,17 @@ function PublicLeagueDetailPage({
             <Badge tone={league.status === 'active' ? 'success' : 'neutral'} dot>
               {league.status === 'active' ? isDrawLeague ? 'Circuito em andamento' : 'Liga em andamento' : isDrawLeague ? 'Circuito encerrado' : 'Liga encerrada'}
             </Badge>
-            <Button variant="secondary" icon={shared ? Copy : Share2} onClick={share}>{shared ? 'Link copiado' : 'Compartilhar liga'}</Button>
+            <Button
+              variant="secondary"
+              icon={shareFeedback?.target === 'league' && shareFeedback.status === 'shared'
+                ? Check
+                : shareFeedback?.target === 'league' && shareFeedback.status === 'copied'
+                  ? Copy
+                  : Share2}
+              onClick={() => void shareLeague()}
+            >
+              {shareLabel(shareFeedback, 'league', 'Compartilhar liga')}
+            </Button>
           </div>
         </section>
 
@@ -359,8 +450,26 @@ function PublicLeagueDetailPage({
               const [home, away] = getMatchTeams(match, league.teams);
               const expanded = expandedMatch === match.id;
               if (!home || !away) return null;
+              const shareTarget = `match:${match.id}`;
+              const matchShareStatus = shareFeedback?.target === shareTarget ? shareFeedback.status : null;
+              const shareMatch = () => {
+                const matchUrl = new URL(window.location.href);
+                matchUrl.hash = `partida-${match.id}`;
+                const score = match.status === 'scheduled'
+                  ? `${home.name} x ${away.name}`
+                  : `${home.name} ${match.homeScore || 0} × ${match.awayScore || 0} ${away.name}`;
+                void runShare(shareTarget, {
+                  title: `${home.shortName || home.name} x ${away.shortName || away.name} · AdminFut`,
+                  text: `${match.status === 'scheduled' ? 'Acompanhe' : 'Confira'} ${score} na ${league.name}.`,
+                  url: matchUrl.toString(),
+                });
+              };
               return (
-                <article className={`public-match ${expanded ? 'public-match--expanded' : ''}`} key={match.id}>
+                <article
+                  className={`public-match ${expanded ? 'public-match--expanded' : ''}`}
+                  id={`partida-${match.id}`}
+                  key={match.id}
+                >
                   <div className="public-match__summary">
                     <div className="public-match__meta">
                       <Badge tone={match.status === 'finished' ? 'neutral' : match.status === 'live' ? 'danger' : 'lime'} dot>{statusLabel(match.status)}</Badge>
@@ -372,9 +481,19 @@ function PublicLeagueDetailPage({
                       <b>{match.status === 'scheduled' ? <i>VS</i> : <>{match.homeScore || 0}<i>×</i>{match.awayScore || 0}</>}</b>
                       <div><TeamMark {...away} size="md" /><strong>{away.name}</strong></div>
                     </div>
-                    <button type="button" onClick={() => setExpandedMatch(expanded ? null : match.id)}>
-                      {expanded ? 'Ocultar súmula' : 'Ver súmula'} {expanded ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
-                    </button>
+                    <div className="public-match__actions">
+                      <button type="button" onClick={shareMatch}>
+                        {matchShareStatus === 'shared'
+                          ? <Check size={16} />
+                          : matchShareStatus === 'copied'
+                            ? <Copy size={16} />
+                            : <Share2 size={16} />}
+                        {shareLabel(shareFeedback, shareTarget, 'Compartilhar')}
+                      </button>
+                      <button type="button" onClick={() => setExpandedMatch(expanded ? null : match.id)}>
+                        {expanded ? 'Ocultar súmula' : 'Ver súmula'} {expanded ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
+                      </button>
+                    </div>
                   </div>
                   {expanded && (
                     <MatchEvents match={match} league={league} />
