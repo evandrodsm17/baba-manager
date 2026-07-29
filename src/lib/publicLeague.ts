@@ -29,7 +29,7 @@ export function buildPublicLeagueSnapshot(data: AppData, league: League) {
   const teamIds = getLeagueTeamIds(league, matches);
   const teams = data.teams.filter((team) => teamIds.includes(team.id));
   const players = data.players
-    .filter((player) => teamIds.includes(player.teamId))
+    .filter((player) => Boolean(player.teamId && teamIds.includes(player.teamId)))
     .map((player) => {
       const publicPlayer = { ...player };
       delete publicPlayer.email;

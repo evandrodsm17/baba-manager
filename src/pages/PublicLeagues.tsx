@@ -11,6 +11,8 @@ import {
   Share2,
   ShieldAlert,
   Trophy,
+  ThumbsDown,
+  ThumbsUp,
   UsersRound,
   Footprints,
 } from 'lucide-react';
@@ -475,6 +477,20 @@ function MatchEvents({
           </div>
         );
       }) : <EmptyState title="Súmula sem eventos" description={match.status === 'scheduled' ? 'A partida ainda não começou.' : 'Nenhum evento foi registrado.'} />}
+      {Boolean(match.highlights?.length) && (
+        <div className="public-match__highlights">
+          <h3>Destaques da partida</h3>
+          {match.highlights?.map((highlight) => {
+            const player = league.players.find((item) => item.id === highlight.playerId);
+            return (
+              <article className={`public-highlight public-highlight--${highlight.tone}`} key={highlight.id}>
+                <span>{highlight.tone === 'positive' ? <ThumbsUp size={17} /> : <ThumbsDown size={17} />}</span>
+                <p><strong>{playerDisplayName(player)} · {highlight.tone === 'positive' ? 'Positivo' : 'Negativo'}</strong><small>{highlight.reason}</small></p>
+              </article>
+            );
+          })}
+        </div>
+      )}
       {match.notes && <p className="public-match__notes"><b>Observações:</b> {match.notes}</p>}
     </div>
   );

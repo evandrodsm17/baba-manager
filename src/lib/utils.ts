@@ -179,6 +179,48 @@ export function confirmationDeadlinePassed(match: Match, now = new Date()) {
   return Boolean(match.confirmationDeadline && +new Date(match.confirmationDeadline) < +now);
 }
 
+export interface CheckinWindow {
+  opensMinutesBefore: number;
+  closesMinutesAfter: number;
+  opensAt: Date;
+  closesAt: Date;
+  isOpen: boolean;
+  isTooEarly: boolean;
+  isClosed: boolean;
+}
+
+export function getCheckinWindow(match: Match, now = new Date()): CheckinWindow {
+  const opensMinutesBefore = Math.max(0, match.checkinOpensMinutesBefore ?? 30);
+  const closesMinutesAfter = Math.max(0, match.checkinClosesMinutesAfter ?? 20);
+  const startsAt = +new Date(match.startsAt);
+  const opensAt = new Date(startsAt - opensMinutesBefore * 60_000);
+  const closesAt = new Date(startsAt + closesMinutesAfter * 60_000);
+  const current = +now;
+  return {
+    opensMinutesBefore,
+    closesMinutesAfter,
+    opensAt,
+    closesAt,
+    isOpen: current >= +opensAt && current <= +closesAt,
+    isTooEarly: current < +opensAt,
+    isClosed: current > +closesAt,
+  };
+}
+
+export function playerParticipatedInMatch(
+  match: Match,
+  player: Player,
+  checkins: Checkin[] = [],
+) {
+  if (match.events.some((event) => event.playerId === player.id || event.assistPlayerId === player.id)) return true;
+  if (match.highlights?.some((highlight) => highlight.playerId === player.id)) return true;
+  if (checkins.some((checkin) => checkin.matchId === match.id && checkin.playerId === player.id && checkin.validated)) return true;
+  if (isDrawMatch(match)) {
+    return Boolean(match.homePlayerIds?.includes(player.id) || match.awayPlayerIds?.includes(player.id));
+  }
+  return matchIncludesPlayer(match, player);
+}
+
 export function getPlayerMatchTeamId(match: Match, playerId: string) {
   if (match.homePlayerIds?.includes(playerId)) return match.homeTeamId;
   if (match.awayPlayerIds?.includes(playerId)) return match.awayTeamId;

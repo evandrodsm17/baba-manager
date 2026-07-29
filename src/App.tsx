@@ -8,6 +8,7 @@ import { Leagues } from './pages/Leagues';
 import { Login } from './pages/Login';
 import { Managers } from './pages/Managers';
 import { Matches } from './pages/Matches';
+import { Performance } from './pages/Performance';
 import { Players } from './pages/Players';
 import { ProductHome } from './pages/ProductHome';
 import { PublicLeagues } from './pages/PublicLeagues';
@@ -54,6 +55,7 @@ function AppRoutes({ role }: { role: 'master' | 'manager' | 'player' }) {
   if (pathname === '/locais') return role === 'manager' ? <Venues /> : <Navigate to="/painel" replace />;
   if (pathname === '/configuracoes') return role === 'manager' ? <Settings /> : <Navigate to="/painel" replace />;
   if (pathname === '/check-in') return role === 'player' ? <CheckinPage /> : <Navigate to="/painel" replace />;
+  if (pathname === '/meu-desempenho') return role === 'player' ? <Performance /> : <Navigate to="/painel" replace />;
   if (pathname === '/gerenciadores') return role === 'master' ? <Managers /> : <Navigate to="/painel" replace />;
   if (pathname === '/atividades') return role === 'master' ? <Activities /> : <Navigate to="/painel" replace />;
   return <Navigate to="/painel" replace />;

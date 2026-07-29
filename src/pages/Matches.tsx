@@ -1,9 +1,11 @@
 import {
+  Award,
   ArrowLeft,
   CalendarDays,
   Check,
   CheckCircle2,
   ClipboardCheck,
+  Clock3,
   Edit3,
   MapPin,
   Palette,
@@ -15,6 +17,8 @@ import {
   Shuffle,
   Trash2,
   Trophy,
+  ThumbsDown,
+  ThumbsUp,
   UsersRound,
   X,
 } from 'lucide-react';
@@ -30,6 +34,7 @@ import {
   buildConfirmationQueue,
   buildDrawLineup,
   formatLongDate,
+  getCheckinWindow,
   getMatchTeams,
   isDrawMatch,
   matchIncludesPlayer,
@@ -38,7 +43,7 @@ import {
   shufflePlayerIds,
 } from '../lib/utils';
 import { useNavigate, useParams, useSearchParams } from '../lib/router';
-import type { Checkin, EventType, Match, MatchConfirmation, MatchEvent, MatchType, StatSubmission } from '../types';
+import type { Checkin, EventType, Match, MatchConfirmation, MatchEvent, MatchHighlight, MatchType, StatSubmission } from '../types';
 
 export function Matches() {
   const params = useParams();
@@ -64,6 +69,8 @@ function MatchesList() {
   const [requiresConfirmation, setRequiresConfirmation] = useState(true);
   const [confirmationDeadline, setConfirmationDeadline] = useState('');
   const [confirmationDeadlineTouched, setConfirmationDeadlineTouched] = useState(false);
+  const [checkinOpensMinutesBefore, setCheckinOpensMinutesBefore] = useState(30);
+  const [checkinClosesMinutesAfter, setCheckinClosesMinutesAfter] = useState(20);
   const [scheduleError, setScheduleError] = useState('');
   const orgId = currentUser?.organizationId;
   const canManage = currentUser?.role === 'manager';
@@ -106,6 +113,8 @@ function MatchesList() {
     setRequiresConfirmation(true);
     setConfirmationDeadline('');
     setConfirmationDeadlineTouched(false);
+    setCheckinOpensMinutesBefore(30);
+    setCheckinClosesMinutesAfter(20);
     setScheduleError('');
     setModalOpen(true);
   };
@@ -149,6 +158,7 @@ function MatchesList() {
     const leagueId = matchType === 'teams' ? String(form.get('leagueId') || '') || undefined : undefined;
     const matchId = createId('match');
     const drawOrder = matchType === 'draw' ? shufflePlayerIds(selectedPlayerIds) : undefined;
+    const startsAtMs = +new Date(String(form.get('startsAt')));
     const entity: Match = {
       id: matchId,
       organizationId: orgId || '',
@@ -170,9 +180,13 @@ function MatchesList() {
         awayTeamColor: drawAwayColor,
         drawnAt: new Date().toISOString(),
       } : {}),
-      startsAt: new Date(String(form.get('startsAt'))).toISOString(),
+      startsAt: new Date(startsAtMs).toISOString(),
       status: 'scheduled',
       requiresGeolocation: form.get('requiresGeolocation') === 'on' || Boolean(venue?.requiresGeolocation),
+      checkinOpensMinutesBefore,
+      checkinClosesMinutesAfter,
+      checkinOpensAtMs: startsAtMs - checkinOpensMinutesBefore * 60_000,
+      checkinClosesAtMs: startsAtMs + checkinClosesMinutesAfter * 60_000,
       requiresConfirmation,
       ...(requiresConfirmation ? {
         confirmationDeadline: new Date(confirmationDeadline).toISOString(),
@@ -383,6 +397,20 @@ function MatchesList() {
           </div>
           {matchType === 'teams' && <label><span>Liga ou competição <small>(opcional)</small></span><select name="leagueId" defaultValue=""><option value="">Amistoso — não contabiliza estatísticas de liga</option>{data.leagues.filter((league) => league.organizationId === orgId && league.status === 'active').map((league) => <option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}</select></label>}
           <label className="toggle-field"><input type="checkbox" name="requiresGeolocation" /><i /><span><strong>Exigir geolocalização no check-in</strong><small>O jogador deverá estar dentro do raio definido no local.</small></span></label>
+          <fieldset className="checkin-window-config">
+            <legend><Clock3 size={18} /><span>Janela do check-in</span></legend>
+            <div className="form-row form-row--2">
+              <label>
+                <span>Abrir quantos minutos antes</span>
+                <input type="number" min="0" max="1440" required value={checkinOpensMinutesBefore} onChange={(event) => setCheckinOpensMinutesBefore(Math.max(0, Number(event.target.value)))} />
+              </label>
+              <label>
+                <span>Encerrar quantos minutos depois</span>
+                <input type="number" min="0" max="1440" required value={checkinClosesMinutesAfter} onChange={(event) => setCheckinClosesMinutesAfter(Math.max(0, Number(event.target.value)))} />
+              </label>
+            </div>
+            <p>O padrão recomendado é de 30 minutos antes até 20 minutos após o horário da partida.</p>
+          </fieldset>
           <label><span>Observações <small>(opcional)</small></span><textarea name="notes" rows={3} placeholder="Informações adicionais para os jogadores..." /></label>
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button><Button type="submit" icon={matchType === 'draw' ? Shuffle : CalendarDays} disabled={!canSchedule}>{matchType === 'draw' ? 'Agendar sorteio' : 'Agendar partida'}</Button></div>
         </form>
@@ -398,6 +426,9 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const [eventOpen, setEventOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [teamIdentityOpen, setTeamIdentityOpen] = useState(false);
+  const [checkinSettingsOpen, setCheckinSettingsOpen] = useState(false);
+  const [highlightsOpen, setHighlightsOpen] = useState(false);
+  const [highlightDrafts, setHighlightDrafts] = useState<MatchHighlight[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [identityHomeColor, setIdentityHomeColor] = useState('#b7f52e');
   const [identityAwayColor, setIdentityAwayColor] = useState('#5f7567');
@@ -414,6 +445,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const [baseHome, baseAway] = getMatchTeams(match, data.teams);
   const venue = data.venues.find((item) => item.id === match.venueId);
   const league = data.leagues.find((item) => item.id === match.leagueId);
+  const checkinWindow = getCheckinWindow(match);
   const confirmationQueue = buildConfirmationQueue(match, data.players, data.matchConfirmations);
   const confirmedSpotIds = new Set(confirmationQueue.confirmedPlayerIds);
   const checkedIn = data.checkins.filter((checkin) => (
@@ -450,6 +482,11 @@ function MatchDetails({ matchId }: { matchId: string }) {
   const pendingCheckinPlayers = data.players
     .filter((player) => drawLineup?.pendingCheckinPlayerIds.includes(player.id))
     .sort((a, b) => playerDisplayName(a).localeCompare(playerDisplayName(b), 'pt-BR'));
+  const highlightPlayers = (isDrawMatch(match) && !effectiveHomePlayerIds.length && !effectiveAwayPlayerIds.length
+    ? data.players.filter((player) => match.selectedPlayerIds?.includes(player.id))
+    : [...homePlayers, ...awayPlayers])
+    .filter((player, index, list) => list.findIndex((item) => item.id === player.id) === index)
+    .sort((a, b) => playerDisplayName(a).localeCompare(playerDisplayName(b), 'pt-BR'));
   const hasPlayersWithoutCheckin = isDrawMatch(match)
     ? pendingCheckinPlayers.length > 0
     : [...homePlayers, ...awayPlayers].some((player) => !checkedIn.some((checkin) => checkin.playerId === player.id));
@@ -483,6 +520,15 @@ function MatchDetails({ matchId }: { matchId: string }) {
     );
     if (!player || !eligible) {
       notify('Este jogador não faz parte da partida.', 'error');
+      return;
+    }
+    if (!checkinWindow.isOpen) {
+      notify(
+        checkinWindow.isTooEarly
+          ? `O check-in abre ${checkinWindow.opensMinutesBefore} minutos antes da partida.`
+          : `A janela de check-in encerrou ${checkinWindow.closesMinutesAfter} minutos após o horário.`,
+        'error',
+      );
       return;
     }
     if (match.requiresConfirmation) {
@@ -677,6 +723,55 @@ function MatchDetails({ matchId }: { matchId: string }) {
     setTeamIdentityOpen(true);
   };
 
+  const saveCheckinSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const checkinOpensMinutesBefore = Math.max(0, Number(form.get('checkinOpensMinutesBefore')) || 0);
+    const checkinClosesMinutesAfter = Math.max(0, Number(form.get('checkinClosesMinutesAfter')) || 0);
+    await saveEntity('matches', {
+      ...match,
+      checkinOpensMinutesBefore,
+      checkinClosesMinutesAfter,
+      checkinOpensAtMs: +new Date(match.startsAt) - checkinOpensMinutesBefore * 60_000,
+      checkinClosesAtMs: +new Date(match.startsAt) + checkinClosesMinutesAfter * 60_000,
+    }, 'alterou a janela de check-in');
+    notify('Janela de check-in atualizada.');
+    setCheckinSettingsOpen(false);
+  };
+
+  const openHighlights = () => {
+    setHighlightDrafts(match.highlights?.length
+      ? match.highlights.map((highlight) => ({ ...highlight }))
+      : [{ id: createId('highlight'), playerId: '', tone: 'positive', reason: '' }]);
+    setHighlightsOpen(true);
+  };
+
+  const updateHighlight = (id: string, patch: Partial<MatchHighlight>) => {
+    setHighlightDrafts((current) => current.map((highlight) => highlight.id === id ? { ...highlight, ...patch } : highlight));
+  };
+
+  const saveHighlights = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (highlightDrafts.length > 3) {
+      notify('Escolha no máximo três destaques para a partida.', 'error');
+      return;
+    }
+    if (highlightDrafts.some((highlight) => !highlight.playerId || !highlight.reason.trim())) {
+      notify('Selecione o jogador e justifique todos os destaques.', 'error');
+      return;
+    }
+    if (new Set(highlightDrafts.map((highlight) => highlight.playerId)).size !== highlightDrafts.length) {
+      notify('Cada jogador pode aparecer apenas uma vez nos destaques da partida.', 'error');
+      return;
+    }
+    await saveEntity('matches', {
+      ...match,
+      highlights: highlightDrafts.map((highlight) => ({ ...highlight, reason: highlight.reason.trim() })),
+    }, 'atualizou os destaques da partida');
+    notify(highlightDrafts.length ? 'Destaques da partida salvos.' : 'Destaques removidos.');
+    setHighlightsOpen(false);
+  };
+
   const eventPlayerTeamId = eventType === 'goal' && ownGoal
     ? eventTeam === home.id ? away.id : home.id
     : eventTeam;
@@ -698,14 +793,19 @@ function MatchDetails({ matchId }: { matchId: string }) {
       notify('Informe ao menos um gol ou uma assistência.', 'error');
       return;
     }
+    const submissionTeamId = isDrawMatch(match)
+      ? effectiveHomePlayerIds.includes(activePlayer.id) ? match.homeTeamId : effectiveAwayPlayerIds.includes(activePlayer.id) ? match.awayTeamId : ''
+      : activePlayer.teamId || '';
+    if (!submissionTeamId) {
+      notify('Não foi possível identificar sua equipe nesta partida.', 'error');
+      return;
+    }
     const submission: StatSubmission = {
       id: playerSubmission?.id || `${match.id}-${activePlayer.id}`,
       organizationId: match.organizationId,
       matchId: match.id,
       playerId: activePlayer.id,
-      teamId: isDrawMatch(match)
-        ? effectiveHomePlayerIds.includes(activePlayer.id) ? match.homeTeamId : effectiveAwayPlayerIds.includes(activePlayer.id) ? match.awayTeamId : ''
-        : activePlayer.teamId,
+      teamId: submissionTeamId,
       goals,
       assists,
       note: String(form.get('note') || '').trim() || undefined,
@@ -774,10 +874,13 @@ function MatchDetails({ matchId }: { matchId: string }) {
           <span><CalendarDays size={16} />{formatLongDate(match.startsAt)}</span>
           <span><MapPin size={16} />{venue?.name}</span>
           {match.requiresGeolocation && <span><Radio size={16} />Check-in geolocalizado</span>}
+          <span><Clock3 size={16} />Check-in: {checkinWindow.opensMinutesBefore} min antes · {checkinWindow.closesMinutesAfter} min depois</span>
         </div>
         {canManage && (
           <div className="match-detail-hero__actions">
             {isDrawMatch(match) && <Button variant="ghost" icon={Palette} onClick={openTeamIdentity}>Personalizar times</Button>}
+            <Button variant="ghost" icon={Clock3} onClick={() => setCheckinSettingsOpen(true)}>Configurar check-in</Button>
+            <Button variant="ghost" icon={Award} onClick={openHighlights}>Destaques</Button>
             <Button variant="danger" icon={Trash2} onClick={() => setDeleteOpen(true)}>Excluir partida</Button>
             {match.status === 'finished' ? (
               <Button icon={RotateCcw} onClick={reopenMatch}>Reabrir partida</Button>
@@ -856,6 +959,30 @@ function MatchDetails({ matchId }: { matchId: string }) {
             }) : <EmptyState title="Súmula vazia" description="Os eventos registrados durante a partida aparecerão aqui." />}
           </div>
         </section>
+        {Boolean(match.highlights?.length) && (
+          <section className="panel match-highlights">
+            <div className="section-header">
+              <div><h2>Destaques da partida</h2><p>Reconhecimentos e pontos de atenção registrados pelo gerenciador</p></div>
+              <Badge tone="neutral">{match.highlights?.length} destaque{match.highlights?.length === 1 ? '' : 's'}</Badge>
+            </div>
+            <div className="match-highlights__list">
+              {match.highlights?.map((highlight) => {
+                const player = data.players.find((item) => item.id === highlight.playerId);
+                return (
+                  <article className={`match-highlight match-highlight--${highlight.tone}`} key={highlight.id}>
+                    <span>{highlight.tone === 'positive' ? <ThumbsUp size={21} /> : <ThumbsDown size={21} />}</span>
+                    <Avatar name={player?.name || 'Jogador'} src={player?.photoUrl} size="sm" />
+                    <div>
+                      <strong>{playerDisplayName(player)}</strong>
+                      <small>{highlight.tone === 'positive' ? 'Destaque positivo' : 'Destaque negativo'}</small>
+                      <p>{highlight.reason}</p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
         {canManage && <AttendanceManager match={match} />}
         <section className="panel match-rosters">
           <div className="section-header">
@@ -867,7 +994,13 @@ function MatchDetails({ matchId }: { matchId: string }) {
               <CheckCircle2 size={19} />
               <p>
                 <strong>Check-in pelo gerenciador</strong>
-                <span>Se alguém estiver sem celular ou internet, confirme pela lista. A geolocalização não será exigida e o registro ficará identificado como manual.</span>
+                <span>
+                  {checkinWindow.isOpen
+                    ? 'Se alguém estiver sem celular ou internet, confirme pela lista. A geolocalização não será exigida e o registro ficará identificado como manual.'
+                    : checkinWindow.isTooEarly
+                      ? `Os registros serão liberados ${checkinWindow.opensMinutesBefore} minutos antes do início da partida.`
+                      : `A janela encerrou ${checkinWindow.closesMinutesAfter} minutos após o horário da partida.`}
+                </span>
               </p>
             </div>
           )}
@@ -912,7 +1045,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
                               <button
                                 className="manual-checkin-button"
                                 type="button"
-                                disabled={manualCheckinPlayerId === player.id}
+                                disabled={manualCheckinPlayerId === player.id || !checkinWindow.isOpen}
                                 aria-label={`Confirmar check-in de ${playerDisplayName(player)} sem geolocalização`}
                                 title="Registrar presença sem exigir geolocalização"
                                 onClick={() => registerManualCheckin(player.id)}
@@ -995,7 +1128,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
                           <button
                             className="manual-checkin-button"
                             type="button"
-                            disabled={manualCheckinPlayerId === player.id}
+                            disabled={manualCheckinPlayerId === player.id || !checkinWindow.isOpen}
                             aria-label={`Confirmar check-in de ${playerDisplayName(player)} sem geolocalização`}
                             title="Registrar presença sem exigir geolocalização"
                             onClick={() => registerManualCheckin(player.id)}
@@ -1161,6 +1294,74 @@ function MatchDetails({ matchId }: { matchId: string }) {
           </div>
           <div className="form-tip"><Palette size={18} /><p><strong>Alteração visual</strong><span>A fila, os jogadores sorteados, o placar e os eventos da súmula não serão modificados.</span></p></div>
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setTeamIdentityOpen(false)}>Cancelar</Button><Button type="submit" icon={Palette}>Salvar identidade</Button></div>
+        </form>
+      </Modal>
+
+      <Modal open={checkinSettingsOpen} onClose={() => setCheckinSettingsOpen(false)} title="Configurar check-in" description="Defina por quanto tempo a presença poderá ser registrada.">
+        <form className="form" onSubmit={saveCheckinSettings}>
+          <div className="form-row form-row--2">
+            <label>
+              <span>Minutos antes da partida</span>
+              <input name="checkinOpensMinutesBefore" type="number" min="0" max="1440" required defaultValue={checkinWindow.opensMinutesBefore} />
+            </label>
+            <label>
+              <span>Minutos depois da partida</span>
+              <input name="checkinClosesMinutesAfter" type="number" min="0" max="1440" required defaultValue={checkinWindow.closesMinutesAfter} />
+            </label>
+          </div>
+          <div className="form-tip"><Clock3 size={18} /><p><strong>Janela atual</strong><span>Abre {formatLongDate(checkinWindow.opensAt.toISOString())} e encerra {formatLongDate(checkinWindow.closesAt.toISOString())}.</span></p></div>
+          <div className="form-tip form-tip--warning"><ShieldAlert size={18} /><p><strong>Vale para todos</strong><span>Jogadores e gerenciadores só podem registrar check-in dentro desta janela. O registro manual continua dispensando apenas a geolocalização.</span></p></div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setCheckinSettingsOpen(false)}>Cancelar</Button><Button type="submit" icon={Clock3}>Salvar janela</Button></div>
+        </form>
+      </Modal>
+
+      <Modal open={highlightsOpen} onClose={() => setHighlightsOpen(false)} title="Destaques da partida" description="Escolha opcionalmente de um a três jogadores e justifique cada avaliação." size="lg">
+        <form className="form" onSubmit={saveHighlights}>
+          <div className="highlight-editor">
+            {highlightDrafts.map((highlight, index) => (
+              <article className={`highlight-editor__item highlight-editor__item--${highlight.tone}`} key={highlight.id}>
+                <header>
+                  <span>{highlight.tone === 'positive' ? <ThumbsUp size={18} /> : <ThumbsDown size={18} />}</span>
+                  <strong>Destaque {index + 1}</strong>
+                  <button type="button" className="icon-button icon-button--danger" aria-label={`Remover destaque ${index + 1}`} onClick={() => setHighlightDrafts((current) => current.filter((item) => item.id !== highlight.id))}><Trash2 size={16} /></button>
+                </header>
+                <div className="form-row form-row--2">
+                  <label>
+                    <span>Jogador</span>
+                    <select required value={highlight.playerId} onChange={(event) => updateHighlight(highlight.id, { playerId: event.target.value })}>
+                      <option value="">Selecione</option>
+                      {highlightPlayers.map((player) => <option key={player.id} value={player.id}>{player.name}{player.nickname ? ` (${player.nickname})` : ''}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Tipo de destaque</span>
+                    <select value={highlight.tone} onChange={(event) => updateHighlight(highlight.id, { tone: event.target.value as MatchHighlight['tone'] })}>
+                      <option value="positive">Positivo</option>
+                      <option value="negative">Negativo</option>
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  <span>Justificativa</span>
+                  <textarea required rows={2} maxLength={280} value={highlight.reason} onChange={(event) => updateHighlight(highlight.id, { reason: event.target.value })} placeholder="Explique por que este jogador foi destacado..." />
+                </label>
+              </article>
+            ))}
+            {!highlightDrafts.length && <div className="highlight-editor__empty"><Award size={24} /><p>Nenhum destaque definido. Você pode salvar assim para limpar a seleção.</p></div>}
+          </div>
+          <div className="highlight-editor__actions">
+            <Button
+              type="button"
+              variant="secondary"
+              icon={Plus}
+              disabled={highlightDrafts.length >= 3}
+              onClick={() => setHighlightDrafts((current) => [...current, { id: createId('highlight'), playerId: '', tone: 'positive', reason: '' }])}
+            >
+              Adicionar destaque
+            </Button>
+            <small>{highlightDrafts.length} de 3 selecionados</small>
+          </div>
+          <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setHighlightsOpen(false)}>Cancelar</Button><Button type="submit" icon={Award}>Salvar destaques</Button></div>
         </form>
       </Modal>
 

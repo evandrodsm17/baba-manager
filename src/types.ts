@@ -55,7 +55,7 @@ export interface Player {
   id: string;
   organizationId: string;
   organizationName?: string;
-  teamId: string;
+  teamId?: string;
   teamName?: string;
   name: string;
   nickname?: string;
@@ -102,6 +102,15 @@ export interface MatchEvent {
   ownGoal?: boolean;
 }
 
+export type MatchHighlightTone = 'positive' | 'negative';
+
+export interface MatchHighlight {
+  id: string;
+  playerId: string;
+  tone: MatchHighlightTone;
+  reason: string;
+}
+
 export interface Match {
   id: string;
   organizationId: string;
@@ -126,10 +135,15 @@ export interface Match {
   homeScore?: number;
   awayScore?: number;
   requiresGeolocation: boolean;
+  checkinOpensMinutesBefore?: number;
+  checkinClosesMinutesAfter?: number;
+  checkinOpensAtMs?: number;
+  checkinClosesAtMs?: number;
   requiresConfirmation?: boolean;
   confirmationDeadline?: string;
   confirmationLimit?: number;
   events: MatchEvent[];
+  highlights?: MatchHighlight[];
   notes?: string;
 }
 

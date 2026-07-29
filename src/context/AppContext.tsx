@@ -58,7 +58,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-const storageKey = 'baba-manager-demo-data-v7';
+const storageKey = 'baba-manager-demo-data-v8';
 
 const emptyData: AppData = {
   organizations: [],

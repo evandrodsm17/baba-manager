@@ -11,7 +11,7 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - troca de contexto entre organizações e times pelo menu do perfil;
 - organizações isoladas por `organizationId`;
 - equipes com nome, sigla, cor, escudo por URL e elenco listado no card;
-- jogadores com foto, apelido, e-mail, posições e número da camisa;
+- jogadores com foto, apelido, e-mail, posições, número da camisa e equipe opcional;
 - classificação opcional de jogadores como mensalistas ou convidados;
 - módulo financeiro com mensalidades, cobranças avulsas, recebimentos, despesas e saldo realizado;
 - locais com coordenadas e raio autorizado para check-in;
@@ -21,10 +21,13 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - placar calculado automaticamente pelos eventos de gol;
 - finalização com bloqueio da súmula e reabertura controlada pelo gerenciador;
 - declaração de gols e assistências pelo jogador, com aprovação do gerenciador;
+- painel do jogador priorizando convites pendentes e próximas partidas confirmadas;
+- área **Meu desempenho** com histórico, gols, assistências, cartões e destaques;
+- até três destaques positivos ou negativos por partida, sempre com justificativa;
 - ligas com imagem por URL, classificação, artilharia e controle disciplinar;
 - página pública opcional por liga, acessível sem login e pronta para compartilhamento;
 - página inicial pública com apresentação do produto e catálogo das ligas publicadas;
-- check-in pelo GPS do celular;
+- check-in pelo GPS do celular, com janela configurável por partida;
 - criação de gerenciadores pelo usuário Master;
 - miniaturas de locais com Google Maps;
 - registro de atividades administrativas;
@@ -389,7 +392,7 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 4. Cadastre um local.
 5. Cadastre jogadores.
 6. Crie uma liga e, se desejar, informe a URL de uma imagem de capa. Uma liga existente pode ser atualizada com **Editar liga**.
-7. Agende uma partida entre equipes fixas ou escolha **Times sorteados**, informe o limite por equipe e selecione ao menos dois goleiros entre os participantes.
+7. Agende uma partida entre equipes fixas ou escolha **Times sorteados**, informe o limite por equipe e selecione ao menos dois goleiros entre os participantes. Jogadores sem equipe também podem ser selecionados.
 8. Mantenha **Solicitar confirmação antecipada** ativado e informe o prazo para os jogadores responderem.
 9. Abra a partida para acompanhar confirmados, fila de espera, respostas “Talvez”, ausências e jogadores que ainda não responderam.
 10. Use **Copiar lembrete** para enviar a convocação no grupo do baba. O link direciona o jogador autenticado para a área **Presença**.
@@ -397,15 +400,16 @@ O convite ficará pendente até o primeiro acesso do gerenciador. O mesmo e-mail
 12. Use **Gol contra** quando necessário, informando como beneficiada a equipe que recebe o ponto.
 13. Edite ou remova eventos enquanto a partida estiver aberta e confira o placar calculado.
 14. Clique em **Finalizar partida** para bloquear a súmula. Para corrigir algo depois, use **Reabrir partida**.
+15. Em **Destaques**, escolha opcionalmente de um a três jogadores, marque o destaque como positivo ou negativo e informe a justificativa.
 15. Em **Ligas**, use **Publicar liga** para gerar a página externa e copie o link exibido.
 
-Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google.
+Para permitir o login de um jogador, preencha no cadastro dele o mesmo e-mail que será utilizado no Google. A equipe é opcional: deixe o campo vazio quando o atleta participar somente de jogos com times sorteados.
 
 No formato **Times sorteados**, os jogadores podem ser escolhidos de qualquer equipe da organização. O vínculo com a equipe original não é alterado: os dois times existem somente naquela partida e podem receber nomes e cores próprios para representar os coletes utilizados. A confirmação “Vou” reserva uma vaga até o limite configurado; quem exceder o limite entra na fila de espera e é promovido automaticamente quando houver desistência. Mensalistas e jogadores sem classificação ficam antes dos convidados. Depois, a primeira formação respeita a ordem dos check-ins validados, novamente mantendo convidados depois dos demais. O sistema reserva um goleiro para cada equipe e somente forma os times depois que dois jogadores da posição confirmarem presença e fizerem check-in.
 
 O gerenciador pode usar **Personalizar times** para corrigir nomes e cores sem alterar a escalação ou a súmula. Enquanto a partida estiver agendada, também pode usar **Refazer distribuição** sem alterar a prioridade da fila. Quando a súmula começa, a composição é salva e fica bloqueada. Esse formato é tratado como amistoso e não entra automaticamente na classificação de uma liga.
 
-Se um jogador estiver sem celular ou internet, o gerenciador pode usar **Confirmar check-in** na relação de jogadores da partida. Esse registro manual ignora a exigência de geolocalização, utiliza o horário em que o gerenciador confirmou a presença e fica identificado no sistema para auditoria. Se a escalação do sorteio já estiver fechada, o jogador será incluído na fila de espera sem alterar os times.
+Se um jogador estiver sem celular ou internet, o gerenciador pode usar **Confirmar check-in** na relação de jogadores da partida. Esse registro manual ignora a exigência de geolocalização, utiliza o horário em que o gerenciador confirmou a presença e fica identificado no sistema para auditoria. Ele continua limitado à janela de check-in da partida, que usa 30 minutos antes e 20 minutos depois como padrão e pode ser alterada em **Configurar check-in**. Se a escalação do sorteio já estiver fechada, o jogador será incluído na fila de espera sem alterar os times.
 
 O gerenciador também pode excluir individualmente partidas, equipes, jogadores, ligas, locais e lançamentos financeiros. Toda exclusão apresenta primeiro as dependências afetadas e exige que a palavra **EXCLUIR** seja digitada. Em **Configurações → Limpar todos os dados**, a confirmação **LIMPAR TUDO** remove de uma só vez os conteúdos da organização, incluindo confirmações, check-ins e estatísticas, mas preserva a organização, os acessos dos gerenciadores e o histórico de auditoria.
 
@@ -459,19 +463,20 @@ A listagem geral fica disponível em:
 /ligas-publicas
 ```
 
-Ela apresenta classificação, jogos agendados e finalizados, placares, eventos da súmula, artilharia, ranking de assistências, cartões, equipes e elencos. A publicação utiliza uma cópia sanitizada: e-mails, check-ins, coordenadas e dados administrativos não são expostos.
+Ela apresenta classificação, jogos agendados e finalizados, placares, eventos da súmula, destaques justificados, artilharia, ranking de assistências, cartões, equipes e elencos. A publicação utiliza uma cópia sanitizada: e-mails, check-ins, coordenadas e dados administrativos não são expostos.
 
 #### Teste do Jogador
 
 1. Entre com o e-mail Google cadastrado no jogador ou abra o menu do perfil.
 2. Selecione o acesso **Jogador** e o vínculo desejado.
-3. Acesse a agenda.
+3. No painel, responda primeiro aos convites pendentes; logo abaixo ficam as próximas partidas já confirmadas.
 4. Abra **Presença**.
 5. Responda **Vou**, **Talvez** ou **Não vou** antes do prazo informado.
 6. Se as vagas estiverem preenchidas, acompanhe sua posição na fila de espera. A promoção acontece automaticamente quando alguém desiste.
-7. Quando estiver com a vaga confirmada, faça o check-in e autorize o acesso à localização do navegador se a partida exigir.
-8. Em uma partida finalizada da sua equipe, envie seus gols e assistências.
-9. Volte ao acesso **Gerenciador** para aprovar ou recusar a declaração. Como uma aprovação altera a súmula oficial, reabra antes uma partida já finalizada.
+7. Quando estiver com a vaga confirmada e dentro da janela permitida, faça o check-in e autorize o acesso à localização do navegador se a partida exigir.
+8. Consulte **Meu desempenho** para ver partidas, gols, assistências, cartões e destaques recebidos.
+9. Em uma partida finalizada em que participou, envie seus gols e assistências.
+10. Volte ao acesso **Gerenciador** para aprovar ou recusar a declaração. Como uma aprovação altera a súmula oficial, reabra antes uma partida já finalizada.
 
 A geolocalização funciona em `localhost` durante o desenvolvimento e em páginas HTTPS, como as publicadas pela Vercel.
 
@@ -587,7 +592,7 @@ Use apenas o domínio, sem protocolo e sem porta.
 ### O jogador não foi vinculado
 
 - cadastre o e-mail Google no perfil do jogador;
-- confirme que o jogador pertence a uma equipe;
+- confirme que o jogador pertence à organização; a equipe só é necessária para confrontos entre equipes fixas;
 - saia e entre novamente.
 
 ### O navegador não libera a localização

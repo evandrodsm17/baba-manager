@@ -1,11 +1,11 @@
 import {
   Activity,
+  Award,
+  BellRing,
   CalendarDays,
   CheckCircle2,
-  MapPin,
   Plus,
   ShieldCheck,
-  Sparkles,
   Trophy,
   UserCog,
   UserCheck,
@@ -14,7 +14,7 @@ import {
 import { MatchCard } from '../components/MatchCard';
 import { Avatar, Badge, Button, PageHeader, SectionHeader, StatCard, TeamMark } from '../components/UI';
 import { useApp } from '../context/AppContext';
-import { buildConfirmationQueue, formatMatchDate, getMatchTeams, getPlayerStats, matchIncludesPlayer, playerDisplayName, timeAgo } from '../lib/utils';
+import { buildConfirmationQueue, confirmationDeadlinePassed, formatLongDate, formatMatchDate, getMatchTeams, getPlayerStats, matchIncludesPlayer, playerDisplayName, timeAgo } from '../lib/utils';
 import { useNavigate } from '../lib/router';
 
 export function Dashboard() {
@@ -123,12 +123,19 @@ function PlayerDashboard() {
   const player = data.players.find((item) => item.id === currentUser?.playerId);
   const team = data.teams.find((item) => item.id === player?.teamId);
   const relevantMatches = data.matches
-    .filter((match) => match.status === 'scheduled' && matchIncludesPlayer(match, player))
+    .filter((match) => (match.status === 'scheduled' || match.status === 'live') && matchIncludesPlayer(match, player))
     .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt));
-  const next = relevantMatches[0];
-  const confirmationQueue = next ? buildConfirmationQueue(next, data.players, data.matchConfirmations) : null;
-  const hasConfirmedSpot = Boolean(player && confirmationQueue?.confirmedPlayerIds.includes(player.id));
-  const nextActionLabel = next?.requiresConfirmation && !hasConfirmedSpot ? 'Responder convocação' : 'Fazer check-in';
+  const invitations = relevantMatches.filter((match) => {
+    if (!player || !match.requiresConfirmation || match.status !== 'scheduled' || confirmationDeadlinePassed(match)) return false;
+    return buildConfirmationQueue(match, data.players, data.matchConfirmations).pendingPlayerIds.includes(player.id);
+  });
+  const invitationIds = new Set(invitations.map((match) => match.id));
+  const upcoming = relevantMatches.filter((match) => {
+    if (!player || invitationIds.has(match.id)) return false;
+    const confirmation = buildConfirmationQueue(match, data.players, data.matchConfirmations).confirmationByPlayerId.get(player.id);
+    return !match.requiresConfirmation || confirmation?.status === 'going' || confirmation?.status === 'maybe';
+  });
+  const firstInvitation = invitations[0];
   const stats = getPlayerStats(data.players, data.matches).find((item) => item.id === player?.id);
 
   return (
@@ -136,25 +143,48 @@ function PlayerDashboard() {
       <PageHeader
         eyebrow="ÁREA DO JOGADOR"
         title={`Fala, ${playerDisplayName(player)}!`}
-        description="Sua próxima partida e seus números estão logo aqui."
-        action={next ? <Button icon={next?.requiresConfirmation && !hasConfirmedSpot ? UserCheck : MapPin} onClick={() => navigate('/check-in')}>{nextActionLabel}</Button> : undefined}
+        description="Responda primeiro às convocações e acompanhe sua agenda."
+        action={firstInvitation
+          ? <Button icon={UserCheck} onClick={() => navigate(`/check-in?matchId=${firstInvitation.id}`)}>Responder convite</Button>
+          : <Button icon={Award} variant="secondary" onClick={() => navigate('/meu-desempenho')}>Meu desempenho</Button>}
       />
-      <div className="player-hero">
-        <div className="player-hero__copy">
-          <span className="eyebrow"><Sparkles size={14} /> PRÓXIMO DESAFIO</span>
-          <h2>{next ? formatMatchDate(next.startsAt) : 'Agenda livre'}</h2>
-          <p>{next ? 'Confirme sua presença e chegue pronto para jogar.' : 'Seu gerenciador ainda não agendou uma nova partida.'}</p>
-          {next && <Button icon={next?.requiresConfirmation && !hasConfirmedSpot ? UserCheck : CheckCircle2} onClick={() => navigate('/check-in')}>{nextActionLabel}</Button>}
-        </div>
-        {next && <div className="player-hero__match"><MatchCard match={next} teams={data.teams} venues={data.venues} compact /></div>}
-      </div>
+
+      {invitations.length > 0 && (
+        <section className="panel player-priority-section player-priority-section--invitations">
+          <SectionHeader title="Convites aguardando sua resposta" description="Sua prioridade agora: confirme se poderá participar" />
+          <div className="player-invitation-list">
+            {invitations.slice(0, 3).map((match) => (
+              <article className="player-invitation" key={match.id}>
+                <span className="player-invitation__icon"><BellRing size={22} /></span>
+                <div>
+                  <strong>Você foi convidado para uma partida</strong>
+                  <p>{formatLongDate(match.startsAt)} · responda antes do encerramento da convocação.</p>
+                </div>
+                <Button icon={UserCheck} onClick={() => navigate(`/check-in?matchId=${match.id}`)}>Responder</Button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="panel player-priority-section">
+        <SectionHeader title="Próximas partidas" description="Partidas para as quais você foi convidado" linkLabel="Ver todas" onLink={() => navigate('/partidas')} />
+        {upcoming.length ? (
+          <div className="match-list">
+            {upcoming.slice(0, 3).map((match) => <MatchCard key={match.id} match={match} teams={data.teams} venues={data.venues} compact />)}
+          </div>
+        ) : (
+          <div className="player-agenda-empty"><CalendarDays size={24} /><p><strong>Nenhuma presença confirmada</strong><span>Responda aos convites acima ou aguarde uma nova convocação.</span></p></div>
+        )}
+      </section>
+
       <div className="stat-grid stat-grid--three">
         <StatCard label="Gols na liga" value={stats?.goals || 0} hint="na temporada" icon={Trophy} />
         <StatCard label="Assistências" value={stats?.assists || 0} hint="passes para gol" icon={UsersRound} tone="blue" />
-        <StatCard label="Presenças" value={data.checkins.filter((checkin) => checkin.playerId === player?.id).length} hint="check-ins validados" icon={CheckCircle2} tone="purple" />
+        <StatCard label="Presenças" value={data.checkins.filter((checkin) => checkin.playerId === player?.id && checkin.validated).length} hint="check-ins validados" icon={CheckCircle2} tone="purple" />
       </div>
       <section className="panel">
-        <SectionHeader title="Sua equipe" description="Elenco atual e situação disciplinar" />
+        <SectionHeader title="Seu perfil esportivo" description="Vínculo atual e situação disciplinar" linkLabel="Meu desempenho" onLink={() => navigate('/meu-desempenho')} />
         <div className="team-summary">
           {team && <TeamMark {...team} size="lg" />}
           <div><h3>{team?.name || 'Sem equipe vinculada'}</h3><p>{player?.positions.join(' · ')}</p></div>

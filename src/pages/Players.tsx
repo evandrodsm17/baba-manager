@@ -42,8 +42,7 @@ export function Players() {
       id: editing?.id || createId('player'),
       organizationId: orgId || '',
       organizationName: organization?.name,
-      teamId,
-      teamName: selectedTeam?.name,
+      ...(teamId ? { teamId, teamName: selectedTeam?.name } : {}),
       name: String(form.get('name') || '').trim(),
       nickname: String(form.get('nickname') || '').trim() || undefined,
       email: String(form.get('email') || '').trim().toLowerCase() || undefined,
@@ -113,7 +112,7 @@ export function Players() {
             <label><span>URL da foto <small>(opcional)</small></span><input name="photoUrl" type="url" defaultValue={editing?.photoUrl} placeholder="https://..." /></label>
           </div>
           <div className="form-row form-row--3">
-            <label><span>Equipe</span><select name="teamId" required defaultValue={editing?.teamId}><option value="">Selecione</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+            <label><span>Equipe <small>(opcional)</small></span><select name="teamId" defaultValue={editing?.teamId || ''}><option value="">Sem equipe</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
             <label><span>Número da camisa</span><input name="shirtNumber" type="number" min="1" max="99" defaultValue={editing?.shirtNumber} placeholder="10" /></label>
             <label><span>Situação</span><select name="status" defaultValue={editing?.status || 'active'}><option value="active">Ativo</option><option value="suspended">Suspenso</option><option value="inactive">Inativo</option></select></label>
           </div>

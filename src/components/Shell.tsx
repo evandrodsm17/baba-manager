@@ -1,5 +1,6 @@
 import {
   Activity,
+  Award,
   CalendarDays,
   ChevronDown,
   CircleUserRound,
@@ -41,6 +42,7 @@ const navByRole = {
   player: [
     { to: '/painel', label: 'Início', icon: LayoutDashboard },
     { to: '/check-in', label: 'Presença', icon: UserCheck },
+    { to: '/meu-desempenho', label: 'Desempenho', icon: Award },
     { to: '/partidas', label: 'Partidas', icon: CalendarDays },
     { to: '/ligas', label: 'Classificação', icon: Trophy },
     { to: '/jogadores', label: 'Atletas', icon: UsersRound },

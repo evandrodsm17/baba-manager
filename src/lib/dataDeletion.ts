@@ -93,6 +93,7 @@ function deletePlayers(next: AppData, playerIds: Set<string>) {
     awayPlayerIds: match.awayPlayerIds?.filter((playerId) => !playerIds.has(playerId)),
     waitingPlayerIds: match.waitingPlayerIds?.filter((playerId) => !playerIds.has(playerId)),
     drawOrder: match.drawOrder?.filter((playerId) => !playerIds.has(playerId)),
+    highlights: match.highlights?.filter((highlight) => !playerIds.has(highlight.playerId)),
     events: match.events
       .filter((event) => !((event.type === 'yellow' || event.type === 'red') && event.playerId && playerIds.has(event.playerId)))
       .map((event) => {

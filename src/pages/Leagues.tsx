@@ -25,7 +25,7 @@ export function Leagues() {
   );
   const standings = selected ? calculateStandings(selected, data.matches) : [];
   const stats = useMemo(() => getPlayerStats(
-    data.players.filter((player) => player.organizationId === orgId && leagueTeamIds.includes(player.teamId)),
+    data.players.filter((player) => player.organizationId === orgId && Boolean(player.teamId && leagueTeamIds.includes(player.teamId))),
     leagueMatches,
   ), [data.players, leagueMatches, leagueTeamIds, orgId]);
   const scorers = [...stats]

@@ -74,6 +74,7 @@ export const demoData: AppData = {
     { id: 'p8', organizationId: org, teamId: 't2', name: 'Felipe Rocha', positions: ['Goleiro'], shirtNumber: 12, status: 'active' },
     { id: 'p9', organizationId: org, teamId: 't3', name: 'João Pedro', nickname: 'JP', positions: ['Atacante'], shirtNumber: 7, status: 'active' },
     { id: 'p10', organizationId: org, teamId: 't3', name: 'Mateus Costa', positions: ['Volante', 'Zagueiro'], shirtNumber: 5, status: 'active' },
+    { id: 'p11', organizationId: org, name: 'Rafael Souza', nickname: 'Rafa', email: 'rafa.jogador@babamanager.app', positions: ['Meia'], membershipType: 'subscriber', status: 'active' },
   ],
   venues: [
     { id: 'v1', organizationId: org, name: 'Arena Pituaçu', address: 'Av. Pinto de Aguiar, Salvador - BA', latitude: -12.9556, longitude: -38.4177, checkinRadius: 250, requiresGeolocation: true },
@@ -85,18 +86,24 @@ export const demoData: AppData = {
     { id: 'l2', organizationId: org, name: 'Torneio de Verão', season: '2026', teamIds: ['t1', 't2'], status: 'finished', yellowCardLimit: 2, redCardSuspension: 1 },
   ],
   matches: [
-    { id: 'm1', organizationId: org, leagueId: 'l1', venueId: 'v1', homeTeamId: 't1', awayTeamId: 't2', startsAt: new Date(Date.now() + 86400000).toISOString(), status: 'scheduled', requiresGeolocation: true, events: [] },
+    {
+      id: 'm1', organizationId: org, leagueId: 'l1', venueId: 'v1', homeTeamId: 't1', awayTeamId: 't2',
+      startsAt: new Date(Date.now() + 86400000).toISOString(), status: 'scheduled', requiresGeolocation: true,
+      checkinOpensMinutesBefore: 30, checkinClosesMinutesAfter: 20, requiresConfirmation: true,
+      confirmationDeadline: new Date(Date.now() + 18 * 3600000).toISOString(), events: [],
+    },
     { id: 'm2', organizationId: org, leagueId: 'l1', venueId: 'v2', homeTeamId: 't3', awayTeamId: 't4', startsAt: new Date(Date.now() + 3 * 86400000).toISOString(), status: 'scheduled', requiresGeolocation: false, events: [] },
     {
       id: 'm5', organizationId: org, venueId: 'v2', homeTeamId: 'm5-green', awayTeamId: 'm5-black', matchType: 'draw',
-      selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9', 'p10'],
+      selectedPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9', 'p10', 'p11'],
       homePlayerIds: [], awayPlayerIds: [], waitingPlayerIds: [],
-      drawOrder: ['p5', 'p4', 'p9', 'p1', 'p8', 'p6', 'p2', 'p3', 'p10'], maxPlayersPerTeam: 3,
+      drawOrder: ['p5', 'p4', 'p9', 'p1', 'p8', 'p6', 'p2', 'p3', 'p10', 'p11'], maxPlayersPerTeam: 3,
       homeTeamName: 'Coletes Limão', awayTeamName: 'Coletes Laranja',
       homeTeamColor: '#b7f52e', awayTeamColor: '#ff7a2f',
-      drawnAt: new Date().toISOString(), startsAt: new Date(Date.now() + 12 * 3600000).toISOString(),
+      drawnAt: new Date().toISOString(), startsAt: new Date(Date.now() + 10 * 60000).toISOString(),
       status: 'scheduled', requiresGeolocation: false, requiresConfirmation: true,
-      confirmationDeadline: new Date(Date.now() + 8 * 3600000).toISOString(), confirmationLimit: 6,
+      checkinOpensMinutesBefore: 30, checkinClosesMinutesAfter: 20,
+      confirmationDeadline: new Date(Date.now() - 60 * 60000).toISOString(), confirmationLimit: 6,
       events: [], notes: 'Times definidos por sorteio entre os participantes.',
     },
     {
@@ -108,6 +115,10 @@ export const demoData: AppData = {
         { id: 'e3', type: 'goal', playerId: 'p2', assistPlayerId: 'p1', teamId: 't1', minute: 42 },
         { id: 'e4', type: 'goal', playerId: 'p9', teamId: 't3', minute: 49 },
         { id: 'e5', type: 'yellow', playerId: 'p3', teamId: 't1', minute: 37 },
+      ],
+      highlights: [
+        { id: 'h1', playerId: 'p1', tone: 'positive', reason: 'Decidiu a partida com dois gols e ainda participou da construção de outro.' },
+        { id: 'h2', playerId: 'p3', tone: 'negative', reason: 'Recebeu cartão em um momento de pressão e precisa melhorar o controle emocional.' },
       ],
     },
     {
@@ -125,11 +136,11 @@ export const demoData: AppData = {
   checkins: [
     { id: 'c1', organizationId: org, matchId: 'm3', playerId: 'p1', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 42, validated: true },
     { id: 'c2', organizationId: org, matchId: 'm3', playerId: 'p2', checkedAt: new Date(Date.now() - 6 * 86400000).toISOString(), distanceMeters: 88, validated: true },
-    { id: 'c-m5-2', organizationId: org, matchId: 'm5', playerId: 'p1', checkedAt: new Date(Date.now() - 39 * 60000).toISOString(), validated: true },
-    { id: 'c-m5-3', organizationId: org, matchId: 'm5', playerId: 'p4', checkedAt: new Date(Date.now() - 35 * 60000).toISOString(), validated: true },
-    { id: 'c-m5-4', organizationId: org, matchId: 'm5', playerId: 'p2', checkedAt: new Date(Date.now() - 30 * 60000).toISOString(), validated: true },
-    { id: 'c-m5-5', organizationId: org, matchId: 'm5', playerId: 'p8', checkedAt: new Date(Date.now() - 24 * 60000).toISOString(), validated: true },
-    { id: 'c-m5-6', organizationId: org, matchId: 'm5', playerId: 'p5', checkedAt: new Date(Date.now() - 18 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-2', organizationId: org, matchId: 'm5', playerId: 'p1', checkedAt: new Date(Date.now() - 9 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-3', organizationId: org, matchId: 'm5', playerId: 'p4', checkedAt: new Date(Date.now() - 8 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-4', organizationId: org, matchId: 'm5', playerId: 'p2', checkedAt: new Date(Date.now() - 7 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-5', organizationId: org, matchId: 'm5', playerId: 'p8', checkedAt: new Date(Date.now() - 6 * 60000).toISOString(), validated: true },
+    { id: 'c-m5-6', organizationId: org, matchId: 'm5', playerId: 'p5', checkedAt: new Date(Date.now() - 5 * 60000).toISOString(), validated: true },
   ],
   matchConfirmations: [
     { id: 'm5-p1', organizationId: org, matchId: 'm5', playerId: 'p1', status: 'going', respondedAt: new Date(Date.now() - 9 * 3600000).toISOString(), source: 'player' },

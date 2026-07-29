@@ -23,24 +23,29 @@ import {
   buildDrawLineup,
   confirmationDeadlinePassed,
   formatLongDate,
+  getCheckinWindow,
   getMatchTeams,
   haversineDistance,
   isDrawMatch,
   matchIncludesPlayer,
 } from '../lib/utils';
+import { useSearchParams } from '../lib/router';
 import type { AttendanceStatus, Checkin, MatchConfirmation } from '../types';
 
 type CheckinState = 'idle' | 'locating' | 'success' | 'outside' | 'error';
 
 export function CheckinPage() {
   const { data, currentUser, saveEntity, notify, isDemo } = useApp();
+  const [searchParams] = useSearchParams();
   const [state, setState] = useState<CheckinState>('idle');
   const [distance, setDistance] = useState<number>();
   const [responding, setResponding] = useState<AttendanceStatus>();
   const player = data.players.find((item) => item.id === currentUser?.playerId);
-  const nextMatch = data.matches
-    .filter((match) => match.status === 'scheduled' && matchIncludesPlayer(match, player))
-    .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt))[0];
+  const eligibleMatches = data.matches
+    .filter((match) => match.status !== 'finished' && matchIncludesPlayer(match, player))
+    .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt));
+  const requestedMatchId = searchParams.get('matchId');
+  const nextMatch = eligibleMatches.find((match) => match.id === requestedMatchId) || eligibleMatches[0];
   const venue = data.venues.find((item) => item.id === nextMatch?.venueId);
   const existing = data.checkins.find((item) => item.matchId === nextMatch?.id && item.playerId === player?.id && item.validated);
   const drawLineup = nextMatch && isDrawMatch(nextMatch)
@@ -57,6 +62,7 @@ export function CheckinPage() {
   const isConfirmationWaitlisted = Boolean(player && confirmationQueue?.waitingPlayerIds.includes(player.id));
   const deadlinePassed = nextMatch ? confirmationDeadlinePassed(nextMatch) : false;
   const checkinAllowed = !nextMatch?.requiresConfirmation || hasConfirmedSpot;
+  const checkinWindow = nextMatch ? getCheckinWindow(nextMatch) : null;
 
   const saveAttendance = async (status: AttendanceStatus) => {
     if (!nextMatch || !player || !currentUser || !nextMatch.requiresConfirmation) return;
@@ -104,6 +110,10 @@ export function CheckinPage() {
 
   const persistCheckin = async (latitude?: number, longitude?: number, measuredDistance?: number) => {
     if (!nextMatch || !player) return;
+    if (!getCheckinWindow(nextMatch).isOpen) {
+      notify('O check-in está fora da janela permitida para esta partida.', 'error');
+      return;
+    }
     const entity: Checkin = {
       id: createId('checkin'),
       organizationId: player.organizationId,
@@ -135,6 +145,15 @@ export function CheckinPage() {
         isConfirmationWaitlisted
           ? 'Você ainda está na fila de espera. Aguarde a liberação de uma vaga.'
           : 'Confirme “Vou” e garanta uma vaga antes de fazer check-in.',
+        'error',
+      );
+      return;
+    }
+    if (!checkinWindow?.isOpen) {
+      notify(
+        checkinWindow?.isTooEarly
+          ? `O check-in abre ${checkinWindow.opensMinutesBefore} minutos antes da partida.`
+          : `O check-in encerrou ${checkinWindow?.closesMinutesAfter || 0} minutos após o horário da partida.`,
         'error',
       );
       return;
@@ -289,6 +308,19 @@ export function CheckinPage() {
                   {isConfirmationWaitlisted ? `Posição geral #${confirmationPosition || '—'}` : 'Check-in bloqueado'}
                 </Badge>
               </div>
+            ) : !checkinWindow?.isOpen ? (
+              <div className="checkin-message">
+                <span><Clock3 size={25} /></span>
+                <h2>{checkinWindow?.isTooEarly ? 'Check-in ainda não abriu' : 'Janela de check-in encerrada'}</h2>
+                <p>
+                  {checkinWindow?.isTooEarly
+                    ? `Você poderá confirmar sua chegada a partir de ${formatLongDate(checkinWindow.opensAt.toISOString())}.`
+                    : `O limite para esta partida foi ${formatLongDate(checkinWindow?.closesAt.toISOString() || nextMatch.startsAt)}.`}
+                </p>
+                <Badge tone={checkinWindow?.isTooEarly ? 'blue' : 'danger'}>
+                  {checkinWindow?.opensMinutesBefore || 0} min antes · {checkinWindow?.closesMinutesAfter || 0} min depois
+                </Badge>
+              </div>
             ) : state === 'outside' ? (
               <div className="checkin-message checkin-message--error">
                 <span><Navigation size={25} /></span><h2>Você está fora do raio</h2>
@@ -319,6 +351,7 @@ export function CheckinPage() {
             <h3>Detalhes do check-in</h3>
             <div><span><MapPin size={17} /></span><p><small>Local</small><strong>{venue.name}</strong></p></div>
             <div><span><Clock3 size={17} /></span><p><small>Início</small><strong>{formatLongDate(nextMatch.startsAt)}</strong></p></div>
+            <div><span><Hourglass size={17} /></span><p><small>Janela permitida</small><strong>{checkinWindow?.opensMinutesBefore || 0} min antes · {checkinWindow?.closesMinutesAfter || 0} min depois</strong></p></div>
             {nextMatch.requiresConfirmation && <div><span><UserCheck size={17} /></span><p><small>Sua convocação</small><strong>{hasConfirmedSpot ? 'Vaga confirmada' : isConfirmationWaitlisted ? 'Fila de espera' : confirmation?.status === 'maybe' ? 'Talvez' : confirmation?.status === 'declined' ? 'Não vai' : 'Pendente'}</strong></p></div>}
             <div><span><Wifi size={17} /></span><p><small>Raio autorizado</small><strong>{venue.checkinRadius} metros</strong></p></div>
           </section>

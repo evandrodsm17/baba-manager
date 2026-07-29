@@ -177,6 +177,15 @@ service cloud.firestore {
         );
     }
 
+    function validCheckinWindow(data) {
+      let matchData = get(/databases/$(database)/documents/matches/$(data.matchId)).data;
+      return matchData.get('checkinOpensAtMs', 0) == 0
+        || (
+          request.time.toMillis() >= matchData.checkinOpensAtMs
+          && request.time.toMillis() <= matchData.checkinClosesAtMs
+        );
+    }
+
     match /users/{userId} {
       allow read: if isMaster() || (signedIn() && request.auth.uid == userId);
 
@@ -269,6 +278,7 @@ service cloud.firestore {
       allow create: if isMaster()
         || (
           validCheckinParticipant(request.resource.data)
+          && validCheckinWindow(request.resource.data)
           && request.resource.data.validated == true
           && (
             (
@@ -289,6 +299,7 @@ service cloud.firestore {
         || (
           isManager()
           && sameOrganization(resource.data)
+          && validCheckinWindow(request.resource.data)
           && request.resource.data.organizationId == resource.data.organizationId
           && request.resource.data.matchId == resource.data.matchId
           && request.resource.data.playerId == resource.data.playerId
