@@ -8,7 +8,7 @@ export const demoUsers: Record<'master' | 'manager' | 'player', UserProfile> = {
     id: 'user-master',
     uid: 'demo-master',
     name: 'Evandro Mota',
-    email: 'master@babamanager.app',
+    email: 'master@adminfut.app',
     role: 'master',
     platformRole: 'master',
     accesses: [
@@ -74,7 +74,7 @@ export const demoData: AppData = {
     { id: 'p8', organizationId: org, teamId: 't2', name: 'Felipe Rocha', positions: ['Goleiro'], shirtNumber: 12, status: 'active' },
     { id: 'p9', organizationId: org, teamId: 't3', name: 'João Pedro', nickname: 'JP', positions: ['Atacante'], shirtNumber: 7, status: 'active' },
     { id: 'p10', organizationId: org, teamId: 't3', name: 'Mateus Costa', positions: ['Volante', 'Zagueiro'], shirtNumber: 5, status: 'active' },
-    { id: 'p11', organizationId: org, name: 'Rafael Souza', nickname: 'Rafa', email: 'rafa.jogador@babamanager.app', positions: ['Meia'], membershipType: 'subscriber', status: 'active' },
+    { id: 'p11', organizationId: org, name: 'Rafael Souza', nickname: 'Rafa', email: 'rafa.jogador@adminfut.app', positions: ['Meia'], membershipType: 'subscriber', status: 'active' },
   ],
   venues: [
     { id: 'v1', organizationId: org, name: 'Arena Pituaçu', address: 'Av. Pinto de Aguiar, Salvador - BA', latitude: -12.9556, longitude: -38.4177, checkinRadius: 250, requiresGeolocation: true },

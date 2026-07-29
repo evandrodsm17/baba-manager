@@ -1,4 +1,4 @@
-# BABA MANAGER
+# AdminFut
 
 Sistema web para organizar futebol amador: equipes, jogadores, partidas, ligas, estatísticas, disciplina e check-in com geolocalização.
 
@@ -98,7 +98,7 @@ A configuração será feita nesta ordem:
 3. Escolha um nome, por exemplo:
 
 ```text
-baba-manager
+adminfut
 ```
 
 4. O Google Analytics é opcional para os primeiros testes.
@@ -111,7 +111,7 @@ baba-manager
 3. Informe um apelido, por exemplo:
 
 ```text
-BABA MANAGER Web
+AdminFut Web
 ```
 
 4. Não é necessário habilitar o Firebase Hosting, pois a aplicação será publicada na Vercel.
@@ -160,7 +160,7 @@ Projetos Firebase recentes podem não incluir `localhost` automaticamente. Infor
 Quando o sistema for publicado, adicione também o domínio da Vercel, por exemplo:
 
 ```text
-baba-manager.vercel.app
+adminfut.vercel.app
 ```
 
 Documentação oficial: [Autenticação Google para aplicações Web](https://firebase.google.com/docs/auth/web/google-signin).
@@ -218,7 +218,7 @@ O nome de cada variável corresponde diretamente ao objeto `firebaseConfig`:
 | `messagingSenderId` | `VITE_FIREBASE_MESSAGING_SENDER_ID` |
 | `appId` | `VITE_FIREBASE_APP_ID` |
 
-Todas as seis variáveis devem estar preenchidas. Caso alguma esteja vazia, o BABA MANAGER continuará no modo demonstração.
+Todas as seis variáveis devem estar preenchidas. Caso alguma esteja vazia, o AdminFut continuará no modo demonstração.
 
 `VITE_GOOGLE_MAPS_API_KEY` é opcional para o restante do sistema, mas necessária para renderizar as miniaturas interativas do Google Maps. Sem ela, o app mantém uma prévia simples e disponibiliza o link para abrir as coordenadas no Google Maps.
 
@@ -449,7 +449,7 @@ A página inicial pública do produto fica disponível em:
 /
 ```
 
-Ela explica como o BABA MANAGER funciona, apresenta seus principais recursos e lista as ligas que foram publicadas. A autenticação é acessada pela navbar em:
+Ela explica como o AdminFut funciona, apresenta seus principais recursos e lista as ligas que foram publicadas. A autenticação é acessada pela navbar em:
 
 ```text
 /login
@@ -546,6 +546,19 @@ Firebase Authentication > Settings > Authorized domains
 
 O arquivo `vercel.json` já possui o rewrite necessário para as rotas da aplicação.
 
+### Rebranding de uma instalação existente
+
+Se o projeto já estava publicado com o nome anterior:
+
+1. No Firebase, abra **Configurações do projeto → Geral** e altere **Nome do projeto** e **Nome público** para `AdminFut`.
+2. Preserve o `projectId` já utilizado nas variáveis `VITE_FIREBASE_*`. O ID técnico de um projeto Firebase não pode ser alterado depois que os recursos são provisionados; criar outro projeto exigiria migrar Authentication, Firestore, regras, índices e credenciais.
+3. Na Vercel, abra **Project Settings → General** e altere o nome do projeto para `adminfut`.
+4. Em **Project Settings → Domains**, confirme o novo domínio `adminfut.vercel.app` ou adicione seu domínio próprio.
+5. Cadastre o novo domínio em **Firebase Authentication → Settings → Authorized domains** e também nas restrições HTTP da chave do Google Maps.
+6. Se renomear o repositório no GitHub, atualize o endereço do remoto local com `git remote set-url origin NOVA_URL`.
+
+Manter internamente o projeto Firebase existente evita perda de usuários e dados. O valor legado do `projectId` não aparece como nome do produto na interface do AdminFut.
+
 ## Comandos úteis
 
 ```bash
@@ -636,4 +649,4 @@ Os índices versionados estão em `firestore.indexes.json`.
 
 ## Status do projeto
 
-O BABA MANAGER está em fase de MVP. Os fluxos principais estão implementados e prontos para testes com Firebase real.
+O AdminFut está em fase de MVP. Os fluxos principais estão implementados e prontos para testes com Firebase real.

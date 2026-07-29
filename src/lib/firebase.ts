@@ -134,10 +134,10 @@ async function resolveUserProfileOnce(user: User): Promise<UserProfile> {
   });
 
   if (!accesses.length) {
-    throw new Error('Esta conta Google ainda não possui acesso ao BABA MANAGER.');
+    throw new Error('Esta conta Google ainda não possui acesso ao AdminFut.');
   }
 
-  const rememberedAccessId = sessionStorage.getItem(`baba-active-access:${user.uid}`);
+  const rememberedAccessId = sessionStorage.getItem(`adminfut-active-access:${user.uid}`);
   const selectedAccess = accesses.find((access) => access.id === rememberedAccessId)
     || accesses.find((access) => (
       access.role === existingData?.role
@@ -161,7 +161,7 @@ async function resolveUserProfileOnce(user: User): Promise<UserProfile> {
   );
 
   await setDoc(userRef, storedProfile(profile));
-  sessionStorage.setItem(`baba-active-access:${user.uid}`, selectedAccess.id);
+  sessionStorage.setItem(`adminfut-active-access:${user.uid}`, selectedAccess.id);
 
   await Promise.all(linkedInvites.docs
     .filter((invite) => invite.data().status === 'pending')
@@ -196,6 +196,6 @@ export async function activateUserAccess(profile: UserProfile, access: UserAcces
     new Date().toISOString(),
   );
   await setDoc(doc(db, 'users', profile.uid), storedProfile(nextProfile));
-  sessionStorage.setItem(`baba-active-access:${profile.uid}`, access.id);
+  sessionStorage.setItem(`adminfut-active-access:${profile.uid}`, access.id);
   return nextProfile;
 }

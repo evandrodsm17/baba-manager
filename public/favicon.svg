@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <path fill="#c8ff32" d="M12 4h40a8 8 0 0 1 8 8v32L40 60H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8Z"/>
   <path fill="#111b16" d="m40 60 20-16v10a6 6 0 0 1-6 6H40Z"/>
-  <text x="32" y="39" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="900" fill="#111b16">BM</text>
+  <text x="32" y="39" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="900" fill="#111b16">AF</text>
 </svg>

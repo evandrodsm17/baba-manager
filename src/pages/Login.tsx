@@ -73,7 +73,7 @@ export function Login() {
           <div className="login-score-card__foot"><MapPin size={12} /> Arena Pituaçu</div>
         </div>
         <div className="login-hero__footer">
-          <span>© 2026 BABA MANAGER</span>
+          <span>© 2026 AdminFut</span>
           <span>Feito para quem leva a resenha a sério.</span>
         </div>
       </section>

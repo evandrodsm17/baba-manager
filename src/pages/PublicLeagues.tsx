@@ -112,10 +112,10 @@ export function PublicLeagues({ leagueId }: { leagueId?: string }) {
 
   useEffect(() => {
     document.title = detail
-      ? `${detail.league.name} · BABA MANAGER`
-      : 'Ligas públicas · BABA MANAGER';
+      ? `${detail.league.name} · AdminFut`
+      : 'Ligas públicas · AdminFut';
     return () => {
-      document.title = 'BABA MANAGER';
+      document.title = 'AdminFut';
     };
   }, [detail]);
 
@@ -170,7 +170,7 @@ function PublicLeagueListPage({
       <PublicHeader />
       <main className="public-main">
         <section className="public-list-hero">
-          <span><Globe2 size={17} /> BABA MANAGER PÚBLICO</span>
+          <span><Globe2 size={17} /> ADMINFUT PÚBLICO</span>
           <h1>Acompanhe as ligas<br /><em>fora das quatro linhas.</em></h1>
           <p>Classificações, resultados, súmulas e rankings compartilhados pelas organizações.</p>
         </section>
@@ -252,7 +252,7 @@ function PublicLeagueDetailPage({
   const share = async () => {
     if (!league) return;
     const shareData = {
-      title: `${league.name} · BABA MANAGER`,
+      title: `${league.name} · AdminFut`,
       text: league.format === 'draw'
         ? `Acompanhe os babas e os rankings individuais de ${league.name}.`
         : `Acompanhe a classificação e os resultados da ${league.name}.`,

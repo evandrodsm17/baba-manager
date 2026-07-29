@@ -81,7 +81,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <span className="sidebar__org-icon"><ShieldCheck size={18} /></span>
           <div>
             <small>{currentUser.role === 'master' ? 'Painel da plataforma' : 'Sua organização'}</small>
-            <strong>{currentUser.role === 'master' ? 'BABA Manager' : organization?.name || 'Organização atual'}</strong>
+            <strong>{currentUser.role === 'master' ? 'AdminFut' : organization?.name || 'Organização atual'}</strong>
           </div>
           <ChevronDown size={15} />
         </div>
@@ -105,7 +105,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar__footer">
           <div className="sidebar__help">
-            <span>BM</span>
+            <span>AF</span>
             <strong>Precisa de ajuda?</strong>
             <small>Consulte o guia de uso.</small>
             <button type="button">Abrir central</button>
@@ -155,7 +155,7 @@ export function Shell({ children }: { children: ReactNode }) {
                           && access.managerInviteId === currentUser.managerInviteId;
                         const accessRole = access.role === 'master' ? 'Master' : access.role === 'manager' ? 'Gerenciador' : 'Jogador';
                         const accessContext = access.role === 'master'
-                          ? 'Plataforma BABA MANAGER'
+                          ? 'Plataforma AdminFut'
                           : access.role === 'manager'
                             ? access.organizationName || `Organização ${access.organizationId?.slice(-6)}`
                             : `${access.organizationName || access.organizationId?.slice(-6)} · ${access.teamName || access.playerName || 'Atleta'}`;

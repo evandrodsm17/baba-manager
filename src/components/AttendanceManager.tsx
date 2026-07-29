@@ -306,7 +306,7 @@ export function AttendanceManager({ match }: { match: Match }) {
     try {
       const responseCount = queue.eligiblePlayerIds.length - queue.pendingPlayerIds.length;
       const message = [
-        `⚽ Confirme sua presença no BABA MANAGER`,
+        `⚽ Confirme sua presença no AdminFut`,
         `Partida: ${formatLongDate(match.startsAt)}`,
         match.confirmationDeadline ? `Prazo: ${formatLongDate(match.confirmationDeadline)}` : '',
         `${responseCount} de ${queue.eligiblePlayerIds.length} jogadores já responderam.`,

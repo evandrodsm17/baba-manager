@@ -33,9 +33,9 @@ export function ProductHome() {
   const managementPath = currentUser ? '/painel' : '/login';
 
   useEffect(() => {
-    document.title = 'BABA MANAGER · Gestão para futebol amador';
+    document.title = 'AdminFut · Gestão para futebol amador';
     return () => {
-      document.title = 'BABA MANAGER';
+      document.title = 'AdminFut';
     };
   }, []);
 
@@ -104,7 +104,7 @@ export function ProductHome() {
             </div>
             <div className="product-hero__visual">
               <div className="product-hero__glow" />
-              <img src="/mascote-baba-manager.png" alt="Mascote oficial do BABA MANAGER segurando um celular e uma prancheta" />
+              <img src="/adminfut-logo.png" alt="Logo oficial do AdminFut" />
               <div className="product-floating-card product-floating-card--match">
                 <span><CalendarCheck2 size={18} /></span>
                 <div><small>PRÓXIMA PARTIDA</small><strong>Hoje · 20:00</strong></div>
@@ -128,7 +128,7 @@ export function ProductHome() {
             <div className="product-section__heading">
               <span className="product-eyebrow">COMO FUNCIONA</span>
               <h2>Da convocação ao apito final.</h2>
-              <p>O BABA MANAGER conecta toda a rotina da sua organização em um único fluxo.</p>
+              <p>O AdminFut conecta toda a rotina da sua organização em um único fluxo.</p>
             </div>
             <div className="product-steps">
               <article>
@@ -185,7 +185,7 @@ export function ProductHome() {
         <section className="product-section product-leagues" id="ligas">
           <div className="product-container">
             <div className="product-section__heading product-section__heading--row">
-              <div><span className="product-eyebrow">LIGAS PÚBLICAS</span><h2>O futebol da comunidade.</h2><p>Acompanhe campeonatos publicados no BABA MANAGER sem precisar entrar.</p></div>
+              <div><span className="product-eyebrow">LIGAS PÚBLICAS</span><h2>O futebol da comunidade.</h2><p>Acompanhe campeonatos publicados no AdminFut sem precisar entrar.</p></div>
               <Button variant="secondary" icon={Globe2} onClick={() => navigate('/ligas-publicas')}>Ver todas</Button>
             </div>
             {loadingLeagues ? (
@@ -222,7 +222,7 @@ export function ProductHome() {
         <section className="product-cta">
           <div className="product-container product-cta__inner">
             <div><span className="product-eyebrow">BORA PRO JOGO?</span><h2>Sua liga merece uma gestão à altura.</h2><p>Entre com sua conta Google e comece a organizar o futebol da sua comunidade.</p></div>
-            <Button icon={ArrowRight} onClick={() => navigate(managementPath)}>{currentUser ? 'Abrir meu painel' : 'Entrar no BABA MANAGER'}</Button>
+            <Button icon={ArrowRight} onClick={() => navigate(managementPath)}>{currentUser ? 'Abrir meu painel' : 'Entrar no AdminFut'}</Button>
           </div>
         </section>
       </main>
@@ -232,7 +232,7 @@ export function ProductHome() {
           <Logo />
           <p>Gestão completa para o futebol amador.</p>
           <div><a href="#como-funciona">Como funciona</a><a href="#ligas">Ligas públicas</a><a href="/login">Entrar</a></div>
-          <small>© {new Date().getFullYear()} BABA MANAGER</small>
+          <small>© {new Date().getFullYear()} AdminFut</small>
         </div>
       </footer>
     </div>

@@ -13,15 +13,14 @@ import { initials } from '../lib/utils';
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`brand ${compact ? 'brand--compact' : ''}`}>
+    <div className={`brand ${compact ? 'brand--compact' : ''}`} role="img" aria-label="AdminFut">
       <span className="brand__mark" aria-hidden="true">
-        <span>BM</span>
-        <i />
+        <img src="/adminfut-logo.png" alt="" />
       </span>
       {!compact && (
-        <span className="brand__wordmark">
-          <strong>BABA</strong>
-          <small>MANAGER</small>
+        <span className="brand__wordmark" aria-hidden="true">
+          <strong>ADMINFUT</strong>
+          <small>FUTEBOL AMADOR</small>
         </span>
       )}
     </div>

@@ -59,7 +59,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-const storageKey = 'baba-manager-demo-data-v10';
+const storageKey = 'adminfut-demo-data-v11';
 
 const emptyData: AppData = {
   organizations: [],
@@ -90,7 +90,7 @@ function readDemoData() {
 }
 
 function readDemoRole() {
-  const role = sessionStorage.getItem('baba-demo-role') as UserRole | null;
+  const role = sessionStorage.getItem('adminfut-demo-role') as UserRole | null;
   return role && demoUsers[role] ? role : null;
 }
 
@@ -278,7 +278,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loginGoogle = useCallback(async () => {
     setAuthLoading(true);
-    sessionStorage.removeItem('baba-demo-role');
+    sessionStorage.removeItem('adminfut-demo-role');
     try {
       const credential = await signInWithGoogle();
       const profile = await resolveUserProfile(credential.user);
@@ -298,13 +298,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsDemo(true);
     setData(readDemoData());
     setCurrentUser(demoUsers[role]);
-    sessionStorage.setItem('baba-demo-role', role);
+    sessionStorage.setItem('adminfut-demo-role', role);
   }, []);
 
   const switchDemoRole = useCallback((role: UserRole) => {
     if (!isDemo) return;
     setCurrentUser(demoUsers[role]);
-    sessionStorage.setItem('baba-demo-role', role);
+    sessionStorage.setItem('adminfut-demo-role', role);
     notify(`Visão alterada para ${role === 'master' ? 'Master' : role === 'manager' ? 'Gerenciador' : 'Jogador'}.`, 'info');
   }, [isDemo, notify]);
 
@@ -352,7 +352,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUser, isDemo, notify]);
 
   const logout = useCallback(async () => {
-    sessionStorage.removeItem('baba-demo-role');
+    sessionStorage.removeItem('adminfut-demo-role');
     if (!isDemo) await signOutUser();
     setCurrentUser(null);
     if (!isDemo) setData(emptyData);
@@ -406,7 +406,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: crypto.randomUUID(),
         actorName: currentUser.name,
         action: auditMessage,
-        entity: 'BABA MANAGER',
+        entity: 'AdminFut',
         createdAt: new Date().toISOString(),
         ...(currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
       };
@@ -495,7 +495,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       organizationId: currentUser.organizationId,
       actorName: currentUser.name,
       action: auditAction,
-      entity: 'BABA MANAGER',
+      entity: 'AdminFut',
       createdAt: new Date().toISOString(),
     };
     const finalData = {

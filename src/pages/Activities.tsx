@@ -30,7 +30,7 @@ export function Activities() {
                   <p><strong>{log.actorName}</strong> {log.action}</p>
                   <div><Badge tone="neutral"><ShieldCheck size={12} />{organization?.name || 'Plataforma'}</Badge><span><CalendarDays size={13} />{timeAgo(log.createdAt)}</span></div>
                 </div>
-                <span className="audit-event__entity">{log.entity}</span>
+                <span className="audit-event__entity">{log.entity === 'BABA MANAGER' ? 'AdminFut' : log.entity}</span>
               </div>
             );
           })}
