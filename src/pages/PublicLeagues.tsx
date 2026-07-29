@@ -148,8 +148,14 @@ function PublicHeader({ back }: { back?: () => void }) {
       <div className="public-header__inner">
         {back ? (
           <button className="public-back" type="button" onClick={back}><ArrowLeft size={18} /> Todas as ligas</button>
-        ) : <Logo />}
-        <div className="public-header__brand">{back && <Logo />}</div>
+        ) : (
+          <a className="public-home-link" href="/" aria-label="Ir para a página inicial do AdminFut"><Logo /></a>
+        )}
+        {back && (
+          <div className="public-header__brand">
+            <a className="public-home-link" href="/" aria-label="Ir para a página inicial do AdminFut"><Logo /></a>
+          </div>
+        )}
         <a className="public-admin-link" href="/login">Entrar e gerenciar <ExternalLink size={15} /></a>
       </div>
     </header>

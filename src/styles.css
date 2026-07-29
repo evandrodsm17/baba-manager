@@ -3257,6 +3257,39 @@ img {
   justify-self: start;
 }
 
+.public-home-link,
+.login-home-logo {
+  width: fit-content;
+  display: inline-flex;
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.public-header__inner > .public-home-link {
+  justify-self: start;
+}
+
+.public-home-link .brand__mark img,
+.login-home-logo .brand__mark img {
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.public-home-link:hover .brand__mark img,
+.login-home-logo:hover .brand__mark img {
+  transform: translateY(-1px) scale(1.03);
+  filter: drop-shadow(0 7px 13px rgba(145, 219, 43, 0.2));
+}
+
+.public-home-link:focus-visible,
+.login-home-logo:focus-visible {
+  outline-color: rgba(200, 255, 50, 0.65);
+}
+
+.public-header__brand {
+  display: flex;
+  justify-content: center;
+}
+
 .public-header__brand .brand {
   justify-self: center;
 }
@@ -3273,6 +3306,7 @@ img {
 }
 
 .public-admin-link {
+  grid-column: 3;
   justify-self: end;
 }
 
@@ -3936,11 +3970,8 @@ img {
   .public-header__inner {
     width: calc(100% - 28px);
     min-height: 64px;
-    grid-template-columns: 1fr auto;
-  }
-
-  .public-header__brand {
-    display: none;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
   }
 
   .public-header .brand__wordmark {

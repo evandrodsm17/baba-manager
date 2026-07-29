@@ -39,7 +39,9 @@ export function Login() {
     <div className="login-page">
       <section className="login-hero">
         <div className="login-hero__grid" />
-        <div className="login-hero__top" style={{ marginTop: '50px' }}><Logo /></div>
+        <div className="login-hero__top" style={{ marginTop: '50px' }}>
+          <a className="login-home-logo" href="/" aria-label="Ir para a página inicial do AdminFut"><Logo /></a>
+        </div>
         <div className="login-hero__content">
           <span className="login-hero__eyebrow"><Sparkles size={15} /> A resenha ficou profissional</span>
           <h1>Seu futebol.<br /><em>Bem organizado.</em></h1>
@@ -80,7 +82,9 @@ export function Login() {
 
       <section className="login-panel">
         <a className="login-back-home" href="/"><ArrowLeft size={17} /> Voltar para o site</a>
-        <div className="login-panel__mobile-logo"><Logo /></div>
+        <div className="login-panel__mobile-logo">
+          <a className="login-home-logo" href="/" aria-label="Ir para a página inicial do AdminFut"><Logo /></a>
+        </div>
         <div className="login-card">
           <span className="login-card__icon"><ShieldCheck size={26} /></span>
           <h2>Bem-vindo de volta</h2>
