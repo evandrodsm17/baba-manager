@@ -941,16 +941,6 @@ img {
   background: #202f27;
 }
 
-.sidebar__link--active::before {
-  content: "";
-  width: 3px;
-  height: 18px;
-  position: absolute;
-  left: -17px;
-  border-radius: 0 3px 3px 0;
-  background: var(--lime);
-}
-
 .sidebar__link--active svg {
   color: var(--lime);
 }
@@ -5867,17 +5857,6 @@ img {
     transform: translateY(-2px);
   }
 
-  .bottom-nav a.active::before {
-    content: "";
-    width: 24px;
-    height: 3px;
-    position: absolute;
-    left: 50%;
-    top: -6px;
-    transform: translateX(-50%);
-    border-radius: 0 0 4px 4px;
-    background: var(--lime);
-  }
 }
 
 /* Final desktop accessibility pass: keep functional text comfortably readable. */
