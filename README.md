@@ -31,6 +31,7 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - ligas com imagem por URL, classificação, artilharia e controle disciplinar;
 - página pública opcional por liga, acessível sem login e pronta para compartilhamento;
 - página inicial pública com apresentação do produto e catálogo das ligas publicadas;
+- PWA instalável no Android, iOS e desktop, com atualização automática e shell disponível offline;
 - check-in pelo GPS do celular, com janela configurável por partida;
 - criação de gerenciadores pelo usuário Master;
 - miniaturas de locais com Google Maps;
@@ -46,6 +47,7 @@ Construído com React, TypeScript, Vite, Firebase Authentication e Cloud Firesto
 - Cloud Firestore
 - Firebase Admin SDK
 - Vercel
+- Vite PWA e Workbox
 
 ## Pré-requisitos
 
@@ -558,6 +560,15 @@ Se o projeto já estava publicado com o nome anterior:
 6. Se renomear o repositório no GitHub, atualize o endereço do remoto local com `git remote set-url origin NOVA_URL`.
 
 Manter internamente o projeto Firebase existente evita perda de usuários e dados. O valor legado do `projectId` não aparece como nome do produto na interface do AdminFut.
+
+### Instalação como aplicativo (PWA)
+
+O AdminFut gera automaticamente `manifest.webmanifest` e `sw.js` durante o build. A publicação HTTPS da Vercel permite que navegadores compatíveis ofereçam a instalação:
+
+- **Android/Chrome e desktop:** use o aviso **Instale o AdminFut** ou a opção de instalação exibida pelo navegador.
+- **iPhone/iPad:** no Safari, toque em **Compartilhar → Adicionar à Tela de Início**.
+
+O service worker mantém o shell da aplicação e seus arquivos estáticos em cache, permitindo abrir a interface mesmo sem conexão. Dados do Firebase e ações que dependem do servidor continuam exigindo internet quando não estiverem disponíveis no cache do próprio navegador.
 
 ## Comandos úteis
 
