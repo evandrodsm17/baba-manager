@@ -33,8 +33,7 @@ export interface DeletionPlan {
   nextData: AppData;
   deletedDocuments: DeletedDocument[];
   updatedDocuments: UpdatedDocument[];
-  deletedLeagueIds: string[];
-  affectedLeagueIds: string[];
+  reconcileOrganizationPublicData: boolean;
   removedCount: number;
 }
 
@@ -115,7 +114,7 @@ function deletePlayers(next: AppData, playerIds: Set<string>) {
   }));
 }
 
-function buildPlan(original: AppData, nextData: AppData, organizationId: string, publicDataAffected: boolean): DeletionPlan {
+function buildPlan(original: AppData, nextData: AppData, publicDataAffected: boolean): DeletionPlan {
   const deletedDocuments: DeletedDocument[] = [];
   const updatedDocuments: UpdatedDocument[] = [];
 
@@ -140,22 +139,11 @@ function buildPlan(original: AppData, nextData: AppData, organizationId: string,
     });
   });
 
-  const deletedLeagueIds = original.leagues
-    .filter((league) => league.organizationId === organizationId)
-    .filter((league) => !nextData.leagues.some((remaining) => remaining.id === league.id))
-    .map((league) => league.id);
-  const affectedLeagueIds = publicDataAffected
-    ? nextData.leagues
-      .filter((league) => league.organizationId === organizationId)
-      .map((league) => league.id)
-    : [];
-
   return {
     nextData,
     deletedDocuments,
     updatedDocuments,
-    deletedLeagueIds,
-    affectedLeagueIds,
+    reconcileOrganizationPublicData: publicDataAffected,
     removedCount: deletedDocuments.length,
   };
 }
@@ -200,7 +188,7 @@ export function planEntityDeletion(
     publicDataAffected = false;
   }
 
-  return buildPlan(data, next, organizationId, publicDataAffected);
+  return buildPlan(data, next, publicDataAffected);
 }
 
 export function planOrganizationCleanup(data: AppData, organizationId: string): DeletionPlan {
@@ -210,5 +198,5 @@ export function planOrganizationCleanup(data: AppData, organizationId: string): 
       (entity) => entity.organizationId !== organizationId,
     ) as never;
   });
-  return buildPlan(data, next, organizationId, true);
+  return buildPlan(data, next, true);
 }

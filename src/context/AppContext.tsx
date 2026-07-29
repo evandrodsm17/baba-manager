@@ -27,7 +27,7 @@ import {
   type DeletionPlan,
 } from '../lib/dataDeletion';
 import { activateUserAccess, db, isFirebaseConfigured, resolveUserProfile, signInWithGoogle, signOutUser, watchAuth } from '../lib/firebase';
-import { deletePublicLeagueSnapshot, syncPublicLeagueSnapshot } from '../lib/publicLeague';
+import { deletePublicLeagueSnapshot, syncOrganizationPublicSnapshots, syncPublicLeagueSnapshot } from '../lib/publicLeague';
 import { buildFinancialStatus } from '../lib/finance';
 import type { AppData, AuditLog, UserProfile, UserRole } from '../types';
 
@@ -104,6 +104,22 @@ function withoutUndefined(value: unknown): unknown {
     );
   }
   return value;
+}
+
+async function retryOperation(operation: () => Promise<void>, attempts = 3) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await operation();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((resolve) => window.setTimeout(resolve, attempt * 250));
+      }
+    }
+  }
+  throw lastError;
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -422,9 +438,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (db && !isDemo && currentUser?.role === 'manager' && removed) {
       if (key === 'leagues') {
         try {
-          await deleteDoc(doc(db, 'publicLeagues', id));
+          await deletePublicLeagueSnapshot(db, id);
         } catch (error) {
           console.error('Falha ao remover a página pública da liga:', error);
+          notify('A liga foi removida, mas a publicação não pôde ser totalmente apagada. Use a limpeza geral para reconciliar os dados.', 'error');
         }
       }
       const affectedLeagueIds = key === 'leagues'
@@ -452,6 +469,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     if (db && !isDemo) {
+      if (plan.reconcileOrganizationPublicData) {
+        try {
+          await retryOperation(() => syncOrganizationPublicSnapshots(
+            db!,
+            plan.nextData,
+            currentUser.organizationId!,
+          ));
+        } catch (error) {
+          console.error('Falha ao reconciliar as páginas públicas antes da exclusão:', error);
+          throw new Error('A exclusão foi interrompida porque as páginas públicas não puderam ser limpas. Nenhum dado interno foi removido; tente novamente.');
+        }
+      }
       await Promise.all([
         ...plan.deletedDocuments.map(({ key, id }) => deleteDoc(doc(db!, key, id))),
         ...plan.updatedDocuments.map(({ key, id, entity }) => setDoc(
@@ -482,17 +511,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Falha ao registrar auditoria da exclusão:', error);
       }
-      try {
-        await Promise.all(plan.deletedLeagueIds.map((leagueId) => deletePublicLeagueSnapshot(db!, leagueId)));
-        await Promise.all(plan.affectedLeagueIds.map((leagueId) => syncPublicLeagueSnapshot(db!, finalData, leagueId)));
-      } catch (error) {
-        console.error('Falha ao limpar as páginas públicas após a exclusão:', error);
-        notify('Os dados foram excluídos, mas alguma página pública pode demorar a atualizar.', 'error');
-      }
     }
 
     return plan.removedCount;
-  }, [currentUser, isDemo, notify]);
+  }, [currentUser, isDemo]);
 
   const deleteEntityWithDependencies = useCallback(async (
     key: DeletableDataKey,

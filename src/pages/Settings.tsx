@@ -31,11 +31,13 @@ export function Settings() {
     submissions: data.statSubmissions.filter((item) => item.organizationId === orgId).length,
     settings: data.financialSettings.filter((item) => item.organizationId === orgId).length,
     charges: data.financialCharges.filter((item) => item.organizationId === orgId).length,
+    statuses: data.financialStatuses.filter((item) => item.organizationId === orgId).length,
+    waivers: data.financialWaivers.filter((item) => item.organizationId === orgId).length,
     expenses: data.financialExpenses.filter((item) => item.organizationId === orgId).length,
   }), [data, orgId]);
 
   const totalRecords = Object.values(counts).reduce((total, count) => total + count, 0);
-  const financialRecords = counts.settings + counts.charges + counts.expenses;
+  const financialRecords = counts.settings + counts.charges + counts.statuses + counts.waivers + counts.expenses;
 
   return (
     <>
@@ -71,8 +73,8 @@ export function Settings() {
             <span><strong>Serão preservados:</strong> a organização, seu acesso de gerenciador, outros gerenciadores e o histórico de auditoria.</span>
           </div>
         </div>
-        <Button variant="danger" icon={Trash2} disabled={totalRecords === 0} onClick={() => setCleanupOpen(true)}>
-          {totalRecords === 0 ? 'Organização já está limpa' : 'Limpar todos os dados'}
+        <Button variant="danger" icon={Trash2} onClick={() => setCleanupOpen(true)}>
+          {totalRecords === 0 ? 'Verificar resíduos públicos' : 'Limpar todos os dados'}
         </Button>
       </section>
 
@@ -80,13 +82,15 @@ export function Settings() {
         open={cleanupOpen}
         onClose={() => setCleanupOpen(false)}
         title="Limpar todos os dados?"
-        description={`Esta operação removerá ${totalRecords} registros de ${organization?.name || 'sua organização'}.`}
+        description={totalRecords === 0
+          ? `Nenhum registro interno foi encontrado em ${organization?.name || 'sua organização'}, mas a operação verificará e removerá páginas públicas residuais.`
+          : `Esta operação removerá ${totalRecords} registros de ${organization?.name || 'sua organização'} e verificará se restou alguma página pública órfã.`}
         confirmationText="LIMPAR TUDO"
         confirmLabel="Limpar organização"
         consequences={[
-          `${counts.matches} partida${counts.matches === 1 ? '' : 's'}, ${counts.confirmations} confirmação${counts.confirmations === 1 ? '' : 'ões'}, ${counts.checkins} check-in${counts.checkins === 1 ? '' : 's'} e ${counts.submissions} envio${counts.submissions === 1 ? '' : 's'} de estatísticas`,
+          `${counts.matches} partida${counts.matches === 1 ? '' : 's'}, ${counts.confirmations} ${counts.confirmations === 1 ? 'confirmação' : 'confirmações'}, ${counts.checkins} check-in${counts.checkins === 1 ? '' : 's'} e ${counts.submissions} envio${counts.submissions === 1 ? '' : 's'} de estatísticas`,
           `${counts.players} jogador${counts.players === 1 ? '' : 'es'} e ${counts.teams} equipe${counts.teams === 1 ? '' : 's'}`,
-          `${counts.leagues} liga${counts.leagues === 1 ? '' : 's'}, incluindo páginas públicas`,
+          `${counts.leagues} liga${counts.leagues === 1 ? '' : 's'} e qualquer página pública residual da organização`,
           `${counts.venues} loca${counts.venues === 1 ? 'l' : 'is'} e ${financialRecords} registro${financialRecords === 1 ? '' : 's'} financeiro${financialRecords === 1 ? '' : 's'}`,
         ]}
         onConfirm={clearOrganizationData}

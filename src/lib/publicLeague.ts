@@ -80,8 +80,7 @@ export async function syncPublicLeagueSnapshot(
   if (!league) return;
   const leagueRef = doc(firestore, 'publicLeagues', league.id);
   if (!league.isPublic) {
-    const existing = await getDoc(leagueRef);
-    if (existing.exists()) await deleteDoc(leagueRef);
+    await deletePublicLeagueSnapshot(firestore, league.id);
     return;
   }
 
@@ -111,6 +110,39 @@ export async function deletePublicLeagueSnapshot(firestore: Firestore, leagueId:
   await Promise.all(matchesDocument.docs.map((matchDocument) => deleteDoc(matchDocument.ref)));
   const existing = await getDoc(leagueRef);
   if (existing.exists()) await deleteDoc(leagueRef);
+}
+
+export async function syncOrganizationPublicSnapshots(
+  firestore: Firestore,
+  data: AppData,
+  organizationId: string,
+) {
+  const expectedLeagues = data.leagues.filter((league) => (
+    league.organizationId === organizationId && league.isPublic
+  ));
+  const expectedIds = new Set(expectedLeagues.map((league) => league.id));
+  const published = await getDocs(query(
+    collection(firestore, 'publicLeagues'),
+    where('organizationId', '==', organizationId),
+  ));
+
+  await Promise.all([
+    ...published.docs
+      .filter((leagueDocument) => !expectedIds.has(leagueDocument.id))
+      .map((leagueDocument) => deletePublicLeagueSnapshot(firestore, leagueDocument.id)),
+    ...expectedLeagues.map((league) => syncPublicLeagueSnapshot(firestore, data, league.id)),
+  ]);
+
+  const remaining = await getDocs(query(
+    collection(firestore, 'publicLeagues'),
+    where('organizationId', '==', organizationId),
+  ));
+  const unexpectedIds = remaining.docs
+    .map((leagueDocument) => leagueDocument.id)
+    .filter((leagueId) => !expectedIds.has(leagueId));
+  if (unexpectedIds.length) {
+    throw new Error(`Publicações residuais não removidas: ${unexpectedIds.join(', ')}`);
+  }
 }
 
 export async function loadPublicLeagueList(firestore: Firestore) {
