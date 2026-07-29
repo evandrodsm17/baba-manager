@@ -17,10 +17,9 @@ import {
   UsersRound,
   Footprints,
 } from 'lucide-react';
-import { PiSoccerBallFill } from "react-icons/pi";
 import { TbRectangleVerticalFilled } from "react-icons/tb";
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Avatar, Badge, Button, EmptyState, Logo, TeamMark } from '../components/UI';
+import { Avatar, Badge, Button, EmptyState, Logo, SoccerBallIcon, TeamMark } from '../components/UI';
 import { useApp } from '../context/AppContext';
 import { db } from '../lib/firebase';
 import {
@@ -338,7 +337,7 @@ function PublicLeagueDetailPage({
             <div className="public-draw-overview">
               <article><CalendarDays size={21} /><strong>{league.finishedMatchCount}</strong><small>{league.finishedMatchCount === 1 ? 'baba finalizado' : 'babas finalizados'}</small></article>
               <article><UsersRound size={21} /><strong>{league.playerCount}</strong><small>jogadores</small></article>
-              <article><PiSoccerBallFill size={21} /><strong>{totalGoals}</strong><small>gols identificados</small></article>
+              <article><SoccerBallIcon /><strong>{totalGoals}</strong><small>gols identificados</small></article>
               <article><Footprints size={21} /><strong>{totalAssists}</strong><small>assistências</small></article>
             </div>
           </section>
@@ -347,7 +346,7 @@ function PublicLeagueDetailPage({
         <section className="public-section">
           <div className="public-section__header"><div><span>DESTAQUES</span><h2>Rankings individuais</h2><p>Estatísticas dos eventos registrados nas súmulas finalizadas.</p></div></div>
           <div className="public-ranking-grid">
-            <RankingCard title="Artilharia" subtitle="Gols marcados" icon={<PiSoccerBallFill size={20} />} players={scorers} metric="goals" league={league} />
+            <RankingCard title="Artilharia" subtitle="Gols marcados" icon={<SoccerBallIcon />} players={scorers} metric="goals" league={league} />
             <RankingCard title="Assistências" subtitle="Passes para gol" icon={<Footprints size={20} />} players={assists} metric="assists" league={league} />
             <DisciplineCard players={discipline} league={league} />
           </div>
@@ -506,7 +505,7 @@ function MatchEvents({
         return (
           <div className="public-event" key={event.id}>
             <strong>{event.minute ? `${event.minute}'` : '—'}</strong>
-            <span>{event.type === 'goal' ? <PiSoccerBallFill size={20} color='white' /> : event.type === 'assist' ? <Trophy size={20} color='white' /> : event.type === 'yellow' ? <TbRectangleVerticalFilled size={20} color='yellow' /> : <TbRectangleVerticalFilled size={20} color='red'  />}</span>
+            <span>{event.type === 'goal' ? <SoccerBallIcon /> : event.type === 'assist' ? <Trophy size={20} color='white' /> : event.type === 'yellow' ? <TbRectangleVerticalFilled size={20} color='yellow' /> : <TbRectangleVerticalFilled size={20} color='red'  />}</span>
             <div>
               <p><b>{eventLabel(event)}</b> · {player ? playerDisplayName(player) : event.type === 'goal' ? 'Autor não informado' : 'Jogador não informado'}</p>
               <small>{assist ? `Assistência de ${playerDisplayName(assist)} · ` : ''}{event.type === 'goal' ? `Gol para ${team?.shortName || 'equipe'}` : team?.name}</small>

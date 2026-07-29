@@ -135,6 +135,45 @@ img {
   letter-spacing: 1.45px;
 }
 
+.soccer-ball-icon {
+  --soccer-ball-size: 28px;
+  width: var(--soccer-ball-size);
+  height: var(--soccer-ball-size);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #050705 !important;
+  background: #ffffff;
+  box-shadow:
+    inset 0 0 0 1px rgba(7, 21, 13, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.soccer-ball-icon svg {
+  width: 70%;
+  height: 70%;
+  display: block;
+  margin: 0 !important;
+  color: #050705 !important;
+  fill: currentColor;
+}
+
+.soccer-ball-icon--sm {
+  --soccer-ball-size: 20px;
+}
+
+.soccer-ball-icon--md {
+  --soccer-ball-size: 28px;
+}
+
+.soccer-ball-icon--lg {
+  --soccer-ball-size: 34px;
+}
+
 .avatar {
   flex: 0 0 auto;
   display: inline-grid;

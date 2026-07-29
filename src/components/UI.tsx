@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { FaShield } from 'react-icons/fa6';
+import { PiSoccerBallFill } from 'react-icons/pi';
 import { initials } from '../lib/utils';
 
 export function Logo({ compact = false }: { compact?: boolean }) {
@@ -24,6 +25,14 @@ export function Logo({ compact = false }: { compact?: boolean }) {
         </span>
       )}
     </div>
+  );
+}
+
+export function SoccerBallIcon({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  return (
+    <span className={`soccer-ball-icon soccer-ball-icon--${size}`} aria-hidden="true">
+      <PiSoccerBallFill />
+    </span>
   );
 }
 

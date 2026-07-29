@@ -23,12 +23,11 @@ import {
   X,
 } from 'lucide-react';
 import { FaTshirt } from 'react-icons/fa';
-import { PiSoccerBallFill } from 'react-icons/pi';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { AttendanceManager } from '../components/AttendanceManager';
 import { DangerConfirmModal } from '../components/DangerConfirmModal';
 import { MatchCard } from '../components/MatchCard';
-import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
+import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, SoccerBallIcon, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import { financialRequirementLabel, getFinancialEligibility } from '../lib/finance';
 import {
@@ -1060,7 +1059,7 @@ function MatchDetails({ matchId }: { matchId: string }) {
               return (
                 <div className="timeline__item" key={item.id}>
                   <strong>{item.minute ? `${item.minute}'` : '—'}</strong>
-                  <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? <PiSoccerBallFill size={20} color="white" /> : ''}</span> 
+                  <span className={`event-icon event-icon--${item.type}`}>{item.type === 'goal' ? <SoccerBallIcon /> : ''}</span>
                   <div>
                     <p><b>{eventLabel}</b> · {subject}</p>
                     {item.type === 'goal' && (

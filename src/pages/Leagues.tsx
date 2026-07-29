@@ -1,8 +1,7 @@
 import { AlertTriangle, Copy, Edit3, ExternalLink, Globe2, ImageIcon, Plus, ShieldCheck, Shuffle, Sparkles, Trash2, Trophy, UsersRound } from 'lucide-react';
-import { PiSoccerBallFill } from "react-icons/pi";
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { DangerConfirmModal } from '../components/DangerConfirmModal';
-import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, TeamMark } from '../components/UI';
+import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, SoccerBallIcon, TeamMark } from '../components/UI';
 import { createId, useApp } from '../context/AppContext';
 import { calculateStandings, getLeaguePlayers, getLeagueTeamIds, getPlayerStats, playerDisplayName } from '../lib/utils';
 import type { League, MatchType } from '../types';
@@ -220,7 +219,7 @@ export function Leagues() {
                 )}
 
                 <section className="panel">
-                  <div className="section-header"><div><h2>Artilharia</h2><p>Gols nesta competição</p></div><PiSoccerBallFill size={20} /></div>
+                  <div className="section-header"><div><h2>Artilharia</h2><p>Gols nesta competição</p></div><SoccerBallIcon /></div>
                   <div className="scorers">
                     {scorers.length ? scorers.map((player, index) => {
                       const team = data.teams.find((item) => item.id === player.teamId);

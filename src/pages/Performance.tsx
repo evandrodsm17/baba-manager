@@ -7,8 +7,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from 'lucide-react';
-import { PiSoccerBallFill } from 'react-icons/pi';
-import { Avatar, Badge, Button, EmptyState, PageHeader, StatCard, TeamMark } from '../components/UI';
+import { Avatar, Badge, Button, EmptyState, PageHeader, SoccerBallIcon, StatCard, TeamMark } from '../components/UI';
 import { useApp } from '../context/AppContext';
 import {
   formatLongDate,
@@ -106,7 +105,7 @@ export function Performance() {
                       <span><TeamMark {...away} size="sm" /><strong>{away.shortName}</strong></span>
                     </div>
                     <div className="performance-match__numbers">
-                      <Badge tone={matchGoals ? 'lime' : 'neutral'}><PiSoccerBallFill />{matchGoals} gol{matchGoals === 1 ? '' : 's'}</Badge>
+                      <Badge tone={matchGoals ? 'lime' : 'neutral'}><SoccerBallIcon size="sm" />{matchGoals} gol{matchGoals === 1 ? '' : 's'}</Badge>
                       <Badge tone={matchAssists ? 'blue' : 'neutral'}><Handshake size={13} />{matchAssists} assistência{matchAssists === 1 ? '' : 's'}</Badge>
                       {matchYellow > 0 && <Badge tone="warning">{matchYellow} amarelo{matchYellow === 1 ? '' : 's'}</Badge>}
                       {matchRed > 0 && <Badge tone="danger">{matchRed} vermelho{matchRed === 1 ? '' : 's'}</Badge>}
